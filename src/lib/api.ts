@@ -31,6 +31,8 @@ export type LessonPackage = {
   title: string;
   lessons: number;
   price_rub: number;
+  // Срок действия с даты покупки, дней; null — бессрочно.
+  validity_days: number | null;
 };
 
 export type ClassFormat = {

@@ -68,6 +68,10 @@ export function placesLabel(count: number): string {
   return `${count} ${plural(count, ["место", "места", "мест"])}`;
 }
 
+export function daysLabel(count: number): string {
+  return `${count} ${plural(count, ["день", "дня", "дней"])}`;
+}
+
 export function hoursLabel(count: number): string {
   return `${count} ${plural(count, ["час", "часа", "часов"])}`;
 }

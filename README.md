@@ -136,8 +136,8 @@ src/
     │                 # bookClassAction, startCheckoutAction, checkPaymentAction —
     │                 # все переиспользуют сообщения об ошибках backend'а
     │                 # вместо своего перевода
-    ├── directions.ts # маркетинговые описания направлений (labels совпадают
-    │                 # с CLASS_LABELS в backend: src/flamenco_bot/class_catalog.py)
+    ├── directions.ts # маркетинговые описания направлений (названия — из
+    │                 # /api/classes; каталог в базе, админка «Каталог»)
     └── format.ts      # форматирование дат/времени
 ```
 

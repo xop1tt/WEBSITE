@@ -19,6 +19,8 @@ const ADMIN_LINKS = [
   { href: "/admin/users", label: "Участники", roles: ["admin"] },
   { href: "/admin/payments", label: "Платежи", roles: ["admin"] },
   { href: "/admin/support", label: "Поддержка", roles: ["admin", "teacher"] },
+  { href: "/admin/catalog", label: "Каталог", roles: ["admin"] },
+  { href: "/admin/settings", label: "Настройки", roles: ["admin"] },
   { href: "/admin/staff", label: "Сотрудники", roles: ["admin"] },
 ] as const;
 

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { GLASS_BUTTON_CLASS } from "@/lib/glass";
 import type { LessonPackage } from "@/lib/api";
 import { startCheckoutAction } from "@/lib/actions";
-import { formatPrice } from "@/lib/format";
+import { daysLabel, formatPrice } from "@/lib/format";
 
 type Props = {
   packages: LessonPackage[];
@@ -83,6 +83,11 @@ export function PackagesGrid({ packages, isAuthenticated, hasTelegram = false }:
                 {formatPrice(pricePerLesson)} за занятие
               </div>
             )}
+            <div className="text-sm text-[var(--text-secondary)]">
+              {lessonPackage.validity_days
+                ? `Действует ${daysLabel(lessonPackage.validity_days)} с покупки`
+                : "Без срока действия"}
+            </div>
           </div>
           <div className="mt-auto pt-2">
             {isAuthenticated === undefined ? (

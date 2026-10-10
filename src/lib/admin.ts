@@ -118,6 +118,34 @@ export type AdminThread = {
   messages: { id: number; sender_role: "user" | "admin"; body: string; created_at: string }[];
 };
 
+export type AdminClassFormat = {
+  key: string;
+  title: string;
+  short_title: string;
+  description: string;
+  level: string;
+  sort_order: number;
+  is_active: boolean;
+};
+
+export type AdminLessonPackage = {
+  key: string;
+  title: string;
+  lessons: number;
+  price_rub: number;
+  validity_days: number | null;
+  sort_order: number;
+  is_active: boolean;
+};
+
+export type StudioRules = {
+  cancellation_deadline_hours: number;
+  rebook_cooldown_hours: number;
+};
+
+export const getAdminClassFormats = () => adminGet<AdminClassFormat[]>("/api/admin/classes");
+export const getAdminPackages = () => adminGet<AdminLessonPackage[]>("/api/admin/packages");
+export const getStudioRules = () => adminGet<StudioRules>("/api/admin/settings");
 export const getAdminStaff = () => adminGet<StaffMember[]>("/api/admin/staff");
 export const getAdminDashboard = () => adminGet<AdminDashboard>("/api/admin/dashboard");
 export const getAdminSlots = () => adminGet<AdminSlot[]>("/api/admin/slots");

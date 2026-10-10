@@ -191,3 +191,65 @@ export async function staffRemoveAction(formData: FormData): Promise<void> {
   }
   back("/admin/staff", { notice: "Роль снята" });
 }
+
+function intField(formData: FormData, name: string): number {
+  return Number(String(formData.get(name) ?? "").trim());
+}
+
+/** Направление: создание (`create` = "1") или изменение по ключу. */
+export async function classFormatAction(formData: FormData): Promise<void> {
+  const key = String(formData.get("key") ?? "").trim();
+  const create = formData.get("create") === "1";
+  const result = await adminRequest(
+    create ? "POST" : "PUT",
+    create ? "/api/admin/classes" : `/api/admin/classes/${encodeURIComponent(key)}`,
+    {
+      key,
+      title: String(formData.get("title") ?? "").trim(),
+      short_title: String(formData.get("short_title") ?? "").trim(),
+      description: String(formData.get("description") ?? "").trim(),
+      level: String(formData.get("level") ?? "").trim(),
+      sort_order: intField(formData, "sort_order") || 0,
+      is_active: formData.get("is_active") === "on",
+    },
+  );
+  if (!result.ok) {
+    back("/admin/catalog", { error: result.message });
+  }
+  back("/admin/catalog", { notice: create ? "Направление добавлено" : "Направление сохранено" });
+}
+
+/** Абонемент: создание или изменение; пустой срок — бессрочно. */
+export async function packageAction(formData: FormData): Promise<void> {
+  const key = String(formData.get("key") ?? "").trim();
+  const create = formData.get("create") === "1";
+  const validity = String(formData.get("validity_days") ?? "").trim();
+  const result = await adminRequest(
+    create ? "POST" : "PUT",
+    create ? "/api/admin/packages" : `/api/admin/packages/${encodeURIComponent(key)}`,
+    {
+      key,
+      title: String(formData.get("title") ?? "").trim(),
+      lessons: intField(formData, "lessons"),
+      price_rub: intField(formData, "price_rub"),
+      validity_days: validity ? Number(validity) : null,
+      sort_order: intField(formData, "sort_order") || 0,
+      is_active: formData.get("is_active") === "on",
+    },
+  );
+  if (!result.ok) {
+    back("/admin/catalog", { error: result.message });
+  }
+  back("/admin/catalog", { notice: create ? "Абонемент добавлен" : "Абонемент сохранён" });
+}
+
+export async function studioRulesAction(formData: FormData): Promise<void> {
+  const result = await adminRequest("PUT", "/api/admin/settings", {
+    cancellation_deadline_hours: intField(formData, "cancellation_deadline_hours"),
+    rebook_cooldown_hours: intField(formData, "rebook_cooldown_hours"),
+  });
+  if (!result.ok) {
+    back("/admin/settings", { error: result.message });
+  }
+  back("/admin/settings", { notice: "Правила сохранены и уже действуют" });
+}
