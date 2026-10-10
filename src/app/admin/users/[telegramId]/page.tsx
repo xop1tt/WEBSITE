@@ -8,10 +8,13 @@ import {
   getAdminClientTickets,
   getAdminLedger,
   getAdminPayments,
+  getAdminSlots,
   type AdminClientCard,
 } from "@/lib/admin";
 import {
   adjustCreditsAction,
+  adminBookAction,
+  adminCancelBookingAction,
   clientProfileAction,
   grantPackageAction,
   revokeGrantAction,
@@ -55,14 +58,23 @@ export default async function AdminClientPage({
     notFound();
   }
   const offset = Math.max(0, Number(rawOffset) || 0);
-  const [card, bookings, payments, ledger, tickets, catalog] = await Promise.all([
+  const [card, bookings, payments, ledger, tickets, catalog, slots] = await Promise.all([
     getAdminClient(telegramId),
     getAdminClientBookings(telegramId, offset),
     getAdminPayments({ telegram_id: telegramId, limit: 20 }),
     getAdminLedger({ telegram_id: telegramId }),
     getAdminClientTickets(telegramId),
     getPackages(),
+    getAdminSlots(),
   ]);
+  const upcomingIds = new Set(card.ok ? card.data.upcoming.map((b) => b.slot_id) : []);
+  // Куда можно записать: открытые занятия со свободными местами, на
+  // которые участник ещё не записан (backend проверит всё сам).
+  const openSlots = slots.ok
+    ? slots.data.filter(
+        (slot) => slot.status === "open" && slot.remaining > 0 && !upcomingIds.has(slot.id),
+      )
+    : [];
   if (!card.ok) {
     if (card.status === 404) notFound();
     return isServiceFailure(card) ? <ServiceUnavailableNotice /> : <EmptyState>Нет доступа.</EmptyState>;
@@ -78,6 +90,53 @@ export default async function AdminClientPage({
       <Notices notice={notice} error={error} />
 
       <Header client={client} />
+
+      <section className={SECTION}>
+        <h2 className={H2}>Запись на занятия</h2>
+        {client.upcoming.length > 0 && (
+          <ul className="flex flex-col gap-2 text-sm">
+            {client.upcoming.map((booking) => (
+              <li key={booking.id} className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <span>{formatAdminDateTime(booking.starts_at)}</span>
+                <span className="font-medium">{booking.class_label}</span>
+                <form action={adminCancelBookingAction}>
+                  <input type="hidden" name="telegram_id" value={telegramId} />
+                  <input type="hidden" name="slot_id" value={booking.slot_id} />
+                  <ConfirmSubmitButton
+                    confirmMessage="Отменить запись? Занятие вернётся на баланс даже позже окна отмены; участник получит уведомление."
+                    className={`${GLASS_BUTTON_CLASS} px-3 py-1 text-xs`}
+                  >
+                    Отменить запись
+                  </ConfirmSubmitButton>
+                </form>
+              </li>
+            ))}
+          </ul>
+        )}
+        <form action={adminBookAction} className="flex flex-wrap items-end gap-2">
+          <input type="hidden" name="telegram_id" value={telegramId} />
+          <label className="flex flex-col gap-1 text-sm font-medium">
+            Записать на занятие
+            <select name="slot_id" required className={`${INPUT_CLASS} min-w-64`}>
+              {openSlots.map((slot) => (
+                <option key={slot.id} value={slot.id}>
+                  {formatAdminDateTime(slot.starts_at)} — {slot.class_label} (мест: {slot.remaining})
+                </option>
+              ))}
+            </select>
+          </label>
+          <ConfirmSubmitButton
+            confirmMessage="Записать участника? С баланса спишется 1 занятие, участник получит уведомление."
+            className={`${PRIMARY_BUTTON_CLASS} px-4 py-2 text-sm`}
+          >
+            Записать
+          </ConfirmSubmitButton>
+        </form>
+        <p className="text-xs text-[var(--text-secondary)]">
+          Те же правила, что при самозаписи: нужны свободное место и занятие на
+          балансе; закрытая запись и пауза после своей отмены не обходятся.
+        </p>
+      </section>
 
       <section className={SECTION}>
         <h2 className={H2}>Абонементы</h2>

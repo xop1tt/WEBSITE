@@ -250,6 +250,10 @@ export const getAdminPayments = (params: {
   before_id?: number;
   limit?: number;
 }) => adminGet<AdminPaymentsPage>(`/api/admin/payments${query({ limit: 50, ...params })}`);
+export const getAdminSlotWaitlist = (slotId: number) =>
+  adminGet<{ telegram_id: number; user_name: string; phone: string | null; joined_at: string }[]>(
+    `/api/admin/slots/${slotId}/waitlist`,
+  );
 export const getAdminClient = (telegramId: number) =>
   adminGet<AdminClientCard>(`/api/admin/clients/${telegramId}`);
 export const getAdminClientBookings = (telegramId: number, offset = 0) =>

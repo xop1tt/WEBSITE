@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import {
   getAdminParticipants,
+  getAdminSlotWaitlist,
   getAdminSlots,
   getAdminStaff,
   type AdminParticipant,
@@ -9,7 +10,7 @@ import {
   type StaffMember,
 } from "@/lib/admin";
 import { getCurrentUser } from "@/lib/auth";
-import { createSlotAction, slotAction } from "@/lib/adminActions";
+import { copyWeekAction, createSlotAction, slotAction } from "@/lib/adminActions";
 import { getClasses } from "@/lib/api";
 import { isServiceFailure } from "@/lib/apiResult";
 import { STUDIO_TIMEZONE, formatClassDateTime } from "@/lib/format";
@@ -77,10 +78,10 @@ export default async function AdminSchedulePage({ searchParams }: { searchParams
   }
   const teachers = staff?.ok ? staff.data : [];
   const selectedId = Number(openSlot);
-  const participants =
+  const [participants, waitlist] =
     Number.isInteger(selectedId) && selectedId > 0
-      ? await getAdminParticipants(selectedId)
-      : null;
+      ? await Promise.all([getAdminParticipants(selectedId), getAdminSlotWaitlist(selectedId)])
+      : [null, null];
   const classOptions = classes.ok ? classes.data : [];
 
   return (
@@ -143,9 +144,13 @@ export default async function AdminSchedulePage({ searchParams }: { searchParams
                 className={INPUT_CLASS}
               />
             </label>
-            <label className="flex flex-col gap-1.5 text-sm font-medium sm:col-span-2 lg:col-span-5">
+            <label className="flex flex-col gap-1.5 text-sm font-medium sm:col-span-2 lg:col-span-3">
               Преподаватель
               <TeacherSelect teachers={teachers} />
+            </label>
+            <label className="flex flex-col gap-1.5 text-sm font-medium lg:col-span-2">
+              Повторять еженедельно, всего занятий
+              <input type="number" name="weeks" min={1} max={12} defaultValue={1} className={INPUT_CLASS} />
             </label>
             <div className="sm:col-span-2 lg:col-span-5">
               <button type="submit" className={`${PRIMARY_BUTTON_CLASS} px-5 py-2 text-sm`}>
@@ -154,6 +159,26 @@ export default async function AdminSchedulePage({ searchParams }: { searchParams
             </div>
           </form>
         </details>
+      )}
+
+      {isAdmin && !archive && (
+        <form action={copyWeekAction} className="flex flex-wrap items-end gap-2 rounded-[24px] glass-subtle p-4 text-sm">
+          <span className="font-medium">Скопировать неделю:</span>
+          <label className="flex flex-col gap-1 text-xs font-medium">
+            любой день недели-образца
+            <input type="date" name="week_start" required className={`${INPUT_CLASS} py-1.5`} />
+          </label>
+          <label className="flex flex-col gap-1 text-xs font-medium">
+            на недель вперёд
+            <input type="number" name="weeks" min={1} max={12} defaultValue={1} className={`${INPUT_CLASS} w-24 py-1.5`} />
+          </label>
+          <ConfirmSubmitButton
+            confirmMessage="Скопировать занятия этой недели (с преподавателями и вместимостью)? Уже существующие и прошедшие занятия пропускаются."
+            className={`${GLASS_BUTTON_CLASS} px-4 py-1.5 text-sm`}
+          >
+            Скопировать
+          </ConfirmSubmitButton>
+        </form>
       )}
 
       {slots.data.length === 0 ? (
@@ -172,6 +197,7 @@ export default async function AdminSchedulePage({ searchParams }: { searchParams
               slot={slot}
               expanded={slot.id === selectedId}
               participants={slot.id === selectedId && participants?.ok ? participants.data : null}
+              waitlist={slot.id === selectedId && waitlist?.ok ? waitlist.data : []}
               teachers={isAdmin ? teachers : null}
               archived={archive !== undefined}
             />
@@ -214,6 +240,7 @@ function SlotRow({
   participants,
   teachers,
   archived,
+  waitlist,
 }: {
   slot: AdminSlot;
   expanded: boolean;
@@ -223,6 +250,7 @@ function SlotRow({
   // Архив: прошедшие занятия не переносятся (уже начавшееся не перенесёт
   // и backend).
   archived: boolean;
+  waitlist: { telegram_id: number; user_name: string; phone: string | null }[];
 }) {
   const status = STATUS[slot.status];
   const fill = slot.capacity > 0 ? Math.round((100 * slot.booked) / slot.capacity) : 0;
@@ -296,6 +324,15 @@ function SlotRow({
                 </li>
               ))}
             </ul>
+          )}
+
+          {waitlist.length > 0 && (
+            <div className="text-sm">
+              <span className="font-medium">Лист ожидания ({waitlist.length}):</span>{" "}
+              <span className="text-[var(--text-secondary)]">
+                {waitlist.map((member) => member.user_name).join(", ")}
+              </span>
+            </div>
           )}
 
           {editable && !archived && (

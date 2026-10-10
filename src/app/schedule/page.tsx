@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { GLASS_BUTTON_CLASS } from "@/lib/glass";
 import { getBookingRules, getSchedule, type ClassSlot } from "@/lib/api";
-import { getMyBookedSlotIds, getProfile } from "@/lib/account";
+import { getMyBookedSlotIds, getMyWaitlistedSlotIds, getProfile } from "@/lib/account";
 import { getCurrentUser } from "@/lib/auth";
 import { balanceLabel, formatClassDateTime, hoursLabel } from "@/lib/format";
 import { BookableScheduleList } from "@/components/BookableScheduleList";
@@ -23,6 +23,7 @@ type SearchParams = Promise<{
   booked?: string;
   already?: string;
   book_error?: string;
+  waitlist?: string;
 }>;
 
 export default async function SchedulePage({
@@ -35,6 +36,7 @@ export default async function SchedulePage({
     booked,
     already,
     book_error: bookError,
+    waitlist,
   } = await searchParams;
   const directions = await getDirections();
   const activeDirection = directions.find(
@@ -45,9 +47,9 @@ export default async function SchedulePage({
     getCurrentUser(),
     getBookingRules(),
   ]);
-  const [profileResult, bookedSlotIds] = currentUser?.telegram_id
-    ? await Promise.all([getProfile(), getMyBookedSlotIds()])
-    : [null, undefined];
+  const [profileResult, bookedSlotIds, waitlistedSlotIds] = currentUser?.telegram_id
+    ? await Promise.all([getProfile(), getMyBookedSlotIds(), getMyWaitlistedSlotIds()])
+    : [null, undefined, undefined];
   const profile = profileResult?.ok ? profileResult.data : null;
   const slots = schedule.ok ? schedule.data : [];
   const bookedSlot = booked
@@ -72,6 +74,13 @@ export default async function SchedulePage({
           credits={profile?.lesson_credits ?? null}
           cancellationDeadlineHours={rules.cancellation_deadline_hours}
         />
+      )}
+      {waitlist && (
+        <p className="rounded-2xl bg-[var(--success-bg)] px-4 py-3 text-sm text-[var(--success-text)]">
+          {waitlist === "joined"
+            ? "Вы в листе ожидания. Когда место освободится, придёт сообщение в Telegram — запишется тот, кто успеет первым."
+            : "Вы вышли из листа ожидания."}
+        </p>
       )}
       {bookError && (
         <div className="rounded-2xl border border-[color-mix(in_srgb,var(--danger)_25%,transparent)] bg-[var(--danger-bg)] px-4 py-3 text-sm text-[var(--danger-text)]">
@@ -106,6 +115,7 @@ export default async function SchedulePage({
           cancellationDeadlineHours={rules.cancellation_deadline_hours}
           bookedSlotIds={bookedSlotIds}
           hasTelegram={currentUser?.telegram_id != null}
+          waitlistedSlotIds={waitlistedSlotIds}
         />
       ) : (
         <ServiceUnavailableNotice />

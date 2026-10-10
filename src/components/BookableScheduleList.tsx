@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { isBookable, type ClassSlot } from "@/lib/api";
 import { formatClassDateTime, hoursLabel, placesLabel } from "@/lib/format";
-import { bookClassAction } from "@/lib/actions";
+import { bookClassAction, waitlistAction } from "@/lib/actions";
 import { ConfirmSubmitButton } from "./ConfirmSubmitButton";
 import { EmptyScheduleNotice } from "./ScheduleList";
 
@@ -17,12 +17,14 @@ type Props = {
   bookedSlotIds?: ReadonlySet<number>;
   // Запись требует привязанного Telegram (backend: 409 без него).
   hasTelegram?: boolean;
+  // Занятия, в листе ожидания которых стоит пользователь.
+  waitlistedSlotIds?: ReadonlySet<number>;
 };
 
 const NO_BOOKINGS: ReadonlySet<number> = new Set();
 
-// Те же правила, что в разделе «Записаться» Telegram-бота: показываются
-// только занятия, на которые можно записаться (открытые, с местами).
+// Те же правила, что в разделе «Записаться» Telegram-бота: открытые
+// занятия; заполненные — с листом ожидания.
 export function BookableScheduleList({
   slots,
   isAuthenticated,
@@ -30,11 +32,9 @@ export function BookableScheduleList({
   cancellationDeadlineHours,
   bookedSlotIds = NO_BOOKINGS,
   hasTelegram = false,
+  waitlistedSlotIds = NO_BOOKINGS,
 }: Props) {
-  // Своё занятие показываем, даже если свободных мест уже не осталось.
-  const bookable = slots.filter(
-    (slot) => isBookable(slot) || (slot.status === "open" && bookedSlotIds.has(slot.id)),
-  );
+  const bookable = slots.filter((slot) => slot.status === "open");
   if (bookable.length === 0) {
     return <EmptyScheduleNotice />;
   }
@@ -52,6 +52,7 @@ export function BookableScheduleList({
           cancellationDeadlineHours={cancellationDeadlineHours}
           booked={bookedSlotIds.has(slot.id)}
           hasTelegram={hasTelegram}
+          waitlisted={waitlistedSlotIds.has(slot.id)}
         />
       ))}
     </ul>
@@ -72,6 +73,7 @@ function BookableScheduleCard({
   cancellationDeadlineHours,
   booked,
   hasTelegram,
+  waitlisted,
 }: {
   slot: ClassSlot;
   isAuthenticated: boolean;
@@ -80,7 +82,9 @@ function BookableScheduleCard({
   cancellationDeadlineHours: number;
   booked: boolean;
   hasTelegram: boolean;
+  waitlisted: boolean;
 }) {
+  const full = !isBookable(slot);
   return (
     <li className="flex flex-wrap items-center justify-between gap-3 rounded-[24px] glass-medium glass-specular p-5">
       <div className="flex flex-col gap-2">
@@ -96,7 +100,7 @@ function BookableScheduleCard({
           </div>
         )}
         <div className="text-sm font-medium text-[var(--primary-text)]">
-          Свободно {placesLabel(slot.remaining)}
+          {full ? "Мест нет" : `Свободно ${placesLabel(slot.remaining)}`}
         </div>
         {irreversible && !booked && (
           <div className="text-xs text-[var(--text-secondary)]">
@@ -119,6 +123,27 @@ function BookableScheduleCard({
             Мои занятия
           </Link>
         </div>
+      ) : full ? (
+        isAuthenticated && hasTelegram ? (
+          <form action={waitlistAction} className="flex shrink-0 flex-col items-end gap-1">
+            <input type="hidden" name="slot_id" value={slot.id} />
+            <input type="hidden" name="action" value={waitlisted ? "leave" : "join"} />
+            {classKey && <input type="hidden" name="class_key" value={classKey} />}
+            {waitlisted && (
+              <span className="text-xs text-[var(--text-secondary)]">
+                Вы в листе ожидания — напишем, когда освободится место
+              </span>
+            )}
+            <button
+              type="submit"
+              className={`${waitlisted ? "glass-subtle" : "btn-primary"} rounded-full px-4 py-2 text-sm font-medium`}
+            >
+              {waitlisted ? "Выйти из очереди" : "🔔 В лист ожидания"}
+            </button>
+          </form>
+        ) : (
+          <span className="shrink-0 text-sm text-[var(--text-secondary)]">Мест нет</span>
+        )
       ) : isAuthenticated && !hasTelegram ? (
         <Link
           href="/account"

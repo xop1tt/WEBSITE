@@ -72,19 +72,31 @@ export async function createSlotAction(formData: FormData): Promise<void> {
   const time = String(formData.get("time") ?? "");
   const capacity = Number(formData.get("capacity"));
   const teacher = optionalId(formData.get("teacher_telegram_id"));
+  const weeks = Math.min(12, Math.max(1, Number(formData.get("weeks")) || 1));
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(time)) {
     back("/admin/schedule", { error: "Укажите дату и время" });
   }
   // Время вводится в часовом поясе студии (как в админке бота).
   const startsAt = `${date}T${time}:00${studioOffset(date, time)}`;
-  const result = await adminRequest("POST", "/api/admin/slots", {
+  const body = {
     class_key: classKey,
     starts_at: startsAt,
     capacity,
     teacher_telegram_id: teacher,
-  });
+  };
+  // Повторы раз в неделю — серией (backend пропустит уже существующие).
+  const result =
+    weeks > 1
+      ? await adminRequest("POST", "/api/admin/slots/series", { ...body, weeks })
+      : await adminRequest("POST", "/api/admin/slots", body);
   if (!result.ok) {
     back("/admin/schedule", { error: result.message });
+  }
+  if (weeks > 1) {
+    const data = result.data as { created: unknown[]; skipped: number };
+    back("/admin/schedule", {
+      notice: `Создано занятий: ${data.created.length}${data.skipped ? `, пропущено (уже есть): ${data.skipped}` : ""}`,
+    });
   }
   back("/admin/schedule", { notice: "Занятие создано" });
 }
@@ -371,4 +383,46 @@ export async function paymentAction(formData: FormData): Promise<void> {
   }
   const message = (result.data as { message?: string } | null)?.message ?? "Готово";
   back(path, { notice: `Платёж №${paymentId}: ${message}` });
+}
+
+export async function copyWeekAction(formData: FormData): Promise<void> {
+  const weekStart = String(formData.get("week_start") ?? "");
+  const weeks = Number(formData.get("weeks"));
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(weekStart)) {
+    back("/admin/schedule", { error: "Укажите неделю" });
+  }
+  const result = await adminRequest("POST", "/api/admin/slots/copy-week", {
+    week_start: weekStart,
+    weeks,
+  });
+  if (!result.ok) {
+    back("/admin/schedule", { error: result.message });
+  }
+  const data = result.data as { created: unknown[]; skipped: number };
+  back("/admin/schedule", {
+    notice: `Скопировано занятий: ${data.created.length}${data.skipped ? `, пропущено: ${data.skipped}` : ""}`,
+  });
+}
+
+/** Запись участника администратором (те же правила, что у самозаписи). */
+export async function adminBookAction(formData: FormData): Promise<void> {
+  const { path, api } = clientPaths(formData);
+  const slotId = Number(formData.get("slot_id"));
+  const result = await adminRequest("POST", `${api}/bookings`, { slot_id: slotId });
+  if (!result.ok) {
+    back(path, { error: result.message });
+  }
+  back(path, { notice: "Участник записан, занятие списано, уведомление отправлено" });
+}
+
+/** Отмена записи администратором: всегда с возвратом занятия. */
+export async function adminCancelBookingAction(formData: FormData): Promise<void> {
+  const { path, api } = clientPaths(formData);
+  const slotId = Number(formData.get("slot_id"));
+  const result = await adminRequest("POST", `${api}/bookings/${slotId}/cancel`);
+  if (!result.ok) {
+    back(path, { error: result.message });
+  }
+  const message = (result.data as { message?: string } | null)?.message ?? "Готово";
+  back(path, { notice: message });
 }

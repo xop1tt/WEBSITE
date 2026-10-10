@@ -1,9 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getMyBookings, getProfile, type UserBooking } from "@/lib/account";
+import {
+  getMyBookings,
+  getMyWaitlist,
+  getProfile,
+  type UserBooking,
+  type WaitlistEntry,
+} from "@/lib/account";
 import { getBookingRules } from "@/lib/api";
-import { cancelBookingAction } from "@/lib/actions";
+import { cancelBookingAction, waitlistAction } from "@/lib/actions";
 import { balanceLabel, formatClassDateTime, hoursLabel } from "@/lib/format";
 import { GLASS_BUTTON_CLASS, PRIMARY_BUTTON_CLASS } from "@/lib/glass";
 import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
@@ -19,6 +25,8 @@ export const dynamic = "force-dynamic";
 type SearchParams = Promise<{
   cancelled?: string;
   cancel_error?: string;
+  waitlist?: string;
+  book_error?: string;
 }>;
 
 // Те же правила, что в «Мои занятия» Telegram-бота: предстоящие — от
@@ -29,12 +37,19 @@ export default async function AccountBookingsPage({
 }: {
   searchParams: SearchParams;
 }) {
-  const { cancelled, cancel_error: cancelError } = await searchParams;
-  const [bookingsResult, profileResult, rules] = await Promise.all([
+  const {
+    cancelled,
+    cancel_error: cancelError,
+    waitlist: waitlistNotice,
+    book_error: waitlistError,
+  } = await searchParams;
+  const [bookingsResult, profileResult, rules, waitlistResult] = await Promise.all([
     getMyBookings(),
     getProfile(),
     getBookingRules(),
+    getMyWaitlist(),
   ]);
+  const waitlist = waitlistResult.ok ? waitlistResult.data : [];
   if (!bookingsResult.ok && bookingsResult.error === "unauthorized") {
     redirect("/login");
   }
@@ -50,9 +65,14 @@ export default async function AccountBookingsPage({
           {balance ? ` — ${balance}` : ""}.
         </p>
       )}
-      {cancelError && (
+      {waitlistNotice === "left" && (
+        <p className="rounded-2xl bg-[var(--success-bg)] px-4 py-3 text-sm text-[var(--success-text)]">
+          Вы вышли из листа ожидания.
+        </p>
+      )}
+      {(cancelError || waitlistError) && (
         <p className="rounded-2xl border border-[color-mix(in_srgb,var(--danger)_25%,transparent)] bg-[var(--danger-bg)] px-4 py-3 text-sm text-[var(--danger-text)]">
-          {cancelError}
+          {cancelError ?? waitlistError}
         </p>
       )}
     </>
@@ -73,6 +93,8 @@ export default async function AccountBookingsPage({
   return (
     <div className="flex flex-col gap-8">
       {notices}
+
+      {waitlist.length > 0 && <WaitlistSection entries={waitlist} />}
 
       <section className="flex flex-col gap-4">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -198,5 +220,40 @@ function UpcomingBooking({
         </form>
       )}
     </li>
+  );
+}
+
+function WaitlistSection({ entries }: { entries: WaitlistEntry[] }) {
+  return (
+    <section className="flex flex-col gap-3">
+      <h2 className="font-heading text-xl font-bold tracking-tight">Лист ожидания</h2>
+      <p className="text-sm text-[var(--text-secondary)]">
+        Когда освободится место, придёт сообщение в Telegram — запишется тот,
+        кто успеет первым.
+      </p>
+      <ul className="flex flex-col gap-3">
+        {entries.map((entry) => (
+          <li
+            key={entry.slot.id}
+            className="flex flex-wrap items-center justify-between gap-3 rounded-[24px] glass-medium p-5"
+          >
+            <div className="flex flex-col gap-1">
+              <span className="font-medium">{entry.slot.class_label}</span>
+              <span className="text-sm text-[var(--text-secondary)]">
+                {formatClassDateTime(entry.slot.starts_at)} · в очереди: {entry.queue_size}
+              </span>
+            </div>
+            <form action={waitlistAction}>
+              <input type="hidden" name="slot_id" value={entry.slot.id} />
+              <input type="hidden" name="action" value="leave" />
+              <input type="hidden" name="from" value="bookings" />
+              <button type="submit" className={`${GLASS_BUTTON_CLASS} px-4 py-2 text-sm`}>
+                Выйти из очереди
+              </button>
+            </form>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }

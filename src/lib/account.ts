@@ -131,3 +131,25 @@ export async function getMyBookedSlotIds(): Promise<Set<number>> {
       .map((booking) => booking.slot_id),
   );
 }
+
+export type WaitlistEntry = {
+  slot: {
+    id: number;
+    class_key: string;
+    class_label: string;
+    starts_at: string;
+    remaining: number;
+    status: string;
+  };
+  joined_at: string;
+  queue_size: number;
+};
+
+export function getMyWaitlist(): Promise<ApiResult<WaitlistEntry[]>> {
+  return fetchWithSession<WaitlistEntry[]>("/api/waitlist/me");
+}
+
+export async function getMyWaitlistedSlotIds(): Promise<Set<number>> {
+  const result = await getMyWaitlist();
+  return new Set(result.ok ? result.data.map((entry) => entry.slot.id) : []);
+}

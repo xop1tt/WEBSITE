@@ -285,3 +285,50 @@ export async function checkPaymentAction(formData: FormData): Promise<void> {
 
   redirect("/account/payments");
 }
+
+/** Лист ожидания: встать в очередь (``join``) или выйти из неё. */
+export async function waitlistAction(formData: FormData): Promise<void> {
+  const slotId = Number(formData.get("slot_id"));
+  const join = formData.get("action") === "join";
+  const classKey = (formData.get("class_key") as string | null) || null;
+  const from = formData.get("from") === "bookings" ? "bookings" : "schedule";
+  const session = (await cookies()).get(SESSION_COOKIE_NAME);
+  if (!session) {
+    redirect("/login");
+  }
+  const target = (params: Record<string, string>) =>
+    from === "bookings"
+      ? `/account/bookings?${new URLSearchParams(params).toString()}`
+      : scheduleRedirectUrl(classKey, params);
+  if (!Number.isFinite(slotId) || slotId <= 0) {
+    redirect(target({ book_error: "Некорректное занятие" }));
+  }
+  let response: Response;
+  try {
+    response = await fetch(
+      join ? `${API_BASE_URL}/api/waitlist` : `${API_BASE_URL}/api/waitlist/${slotId}`,
+      {
+        method: join ? "POST" : "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          cookie: `${SESSION_COOKIE_NAME}=${session.value}`,
+        },
+        body: join ? JSON.stringify({ slot_id: slotId }) : undefined,
+      },
+    );
+  } catch (error) {
+    console.error("Waitlist request failed", error);
+    redirect(target({ book_error: SERVICE_UNAVAILABLE_MESSAGE }));
+  }
+  if (response.status === 401) {
+    redirect("/login");
+  }
+  if (!response.ok && response.status !== 404) {
+    redirect(
+      target({
+        book_error: await failureMessage(response, "Не удалось изменить лист ожидания."),
+      }),
+    );
+  }
+  redirect(target({ waitlist: join ? "joined" : "left" }));
+}
