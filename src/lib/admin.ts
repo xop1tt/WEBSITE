@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import type { PackageSummary, SupportTicket } from "./account";
 import { requestJson, type ApiResult } from "./apiResult";
 import { API_BASE_URL, SESSION_COOKIE_NAME } from "./backend";
 
@@ -96,6 +97,80 @@ export type AdminPayment = {
   status: string;
   status_label: string;
   created_at: string;
+  completed_at: string | null;
+  expires_at: string | null;
+  refund_reason: string | null;
+  refunded_at: string | null;
+};
+
+export type AdminPaymentsPage = { items: AdminPayment[]; next_before_id: number | null };
+
+export type AdminBooking = {
+  id: number;
+  slot_id: number;
+  class_label: string;
+  starts_at: string;
+  status: string;
+  status_label: string;
+  slot_cancel_reason: string | null;
+};
+
+export type AdminClientCard = {
+  profile: {
+    telegram_id: number;
+    user_name: string;
+    phone: string | null;
+    lesson_credits: number;
+    registered_at: string;
+  };
+  role: "admin" | "teacher" | null;
+  email: string | null;
+  has_web_account: boolean;
+  packages: PackageSummary;
+  upcoming: AdminBooking[];
+};
+
+export type AdminOperation = {
+  id: number;
+  created_at: string;
+  delta: number;
+  operation: string;
+  label: string;
+  reason: string | null;
+  package_title: string | null;
+  class_label: string | null;
+  starts_at: string | null;
+  telegram_id: number;
+  user_name: string | null;
+  actor_telegram_id: number | null;
+};
+
+export type AdminAuditEvent = {
+  source: string;
+  action: string;
+  label: string;
+  created_at: string;
+  actor_telegram_id: number | null;
+  actor_name: string | null;
+  target_telegram_id: number | null;
+  target_name: string | null;
+  slot_id: number | null;
+  payment_id: number | null;
+  delta: number | null;
+  reason: string | null;
+};
+
+export type AdminReconciliation = {
+  checked_users: number;
+  mismatched_users: number;
+  mismatches: {
+    telegram_id: number;
+    user_name: string;
+    lesson_credits: number;
+    ledger_total: number;
+    difference: number;
+    ledger_entries: number;
+  }[];
 };
 
 export type AdminTicket = {
@@ -150,12 +225,49 @@ export const getAdminPackages = () => adminGet<AdminLessonPackage[]>("/api/admin
 export const getStudioRules = () => adminGet<StudioRules>("/api/admin/settings");
 export const getAdminStaff = () => adminGet<StaffMember[]>("/api/admin/staff");
 export const getAdminDashboard = () => adminGet<AdminDashboard>("/api/admin/dashboard");
-export const getAdminSlots = () => adminGet<AdminSlot[]>("/api/admin/slots");
+export const getAdminSlots = (period?: { from: string; to: string }) =>
+  adminGet<AdminSlot[]>(
+    period
+      ? `/api/admin/slots?${new URLSearchParams(period).toString()}`
+      : "/api/admin/slots",
+  );
 export const getAdminParticipants = (slotId: number) =>
   adminGet<AdminParticipant[]>(`/api/admin/slots/${slotId}/participants`);
 export const getAdminUsers = (query: string) =>
   adminGet<AdminAccount[]>(`/api/admin/users?q=${encodeURIComponent(query)}&limit=100`);
-export const getAdminPayments = () => adminGet<AdminPayment[]>("/api/admin/payments?limit=100");
+function query(params: Record<string, string | number | null | undefined>): string {
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== null && value !== undefined && value !== "") search.set(key, String(value));
+  }
+  const text = search.toString();
+  return text ? `?${text}` : "";
+}
+
+export const getAdminPayments = (params: {
+  status?: string;
+  telegram_id?: number;
+  before_id?: number;
+  limit?: number;
+}) => adminGet<AdminPaymentsPage>(`/api/admin/payments${query({ limit: 50, ...params })}`);
+export const getAdminClient = (telegramId: number) =>
+  adminGet<AdminClientCard>(`/api/admin/clients/${telegramId}`);
+export const getAdminClientBookings = (telegramId: number, offset = 0) =>
+  adminGet<{ items: AdminBooking[]; next_offset: number | null }>(
+    `/api/admin/clients/${telegramId}/bookings${query({ offset, limit: 20 })}`,
+  );
+export const getAdminClientTickets = (telegramId: number) =>
+  adminGet<SupportTicket[]>(`/api/admin/clients/${telegramId}/tickets`);
+export const getAdminLedger = (params: { telegram_id?: number; before_id?: number }) =>
+  adminGet<{ items: AdminOperation[]; next_before_id: number | null }>(
+    `/api/admin/ledger${query({ limit: 30, ...params })}`,
+  );
+export const getAdminAudit = (before?: string) =>
+  adminGet<{ items: AdminAuditEvent[]; next_before: string | null }>(
+    `/api/admin/audit${query({ before, limit: 50 })}`,
+  );
+export const getAdminReconciliation = () =>
+  adminGet<AdminReconciliation>("/api/admin/reconciliation");
 export const getAdminTickets = (status: "open" | "closed") =>
   adminGet<AdminTicket[]>(`/api/admin/support?status=${status}`);
 export const getAdminThread = (ticketId: number) =>

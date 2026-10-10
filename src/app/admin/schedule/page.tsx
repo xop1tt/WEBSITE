@@ -12,7 +12,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { createSlotAction, slotAction } from "@/lib/adminActions";
 import { getClasses } from "@/lib/api";
 import { isServiceFailure } from "@/lib/apiResult";
-import { formatClassDateTime } from "@/lib/format";
+import { STUDIO_TIMEZONE, formatClassDateTime } from "@/lib/format";
 import { GLASS_BUTTON_CLASS, INPUT_CLASS, PRIMARY_BUTTON_CLASS } from "@/lib/glass";
 import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
 import { ServiceUnavailableNotice } from "@/components/ServiceUnavailableNotice";
@@ -22,7 +22,29 @@ export const metadata: Metadata = {
   title: "Расписание",
 };
 
-type SearchParams = Promise<{ notice?: string; error?: string; slot?: string }>;
+type SearchParams = Promise<{
+  notice?: string;
+  error?: string;
+  slot?: string;
+  from?: string;
+  to?: string;
+}>;
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Начало дня в часовом поясе студии (для периода архива). */
+function dayStart(date: string): string {
+  return `${date}T00:00:00${studioOffsetLabel(date)}`;
+}
+
+function studioOffsetLabel(date: string): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: STUDIO_TIMEZONE,
+    timeZoneName: "longOffset",
+  }).formatToParts(new Date(`${date}T12:00:00Z`));
+  const name = parts.find((part) => part.type === "timeZoneName")?.value ?? "GMT";
+  return name.replace("GMT", "") || "+00:00";
+}
 
 const STATUS = {
   open: { label: "запись открыта", tone: "success" },
@@ -31,11 +53,21 @@ const STATUS = {
 } as const;
 
 export default async function AdminSchedulePage({ searchParams }: { searchParams: SearchParams }) {
-  const { notice, error, slot: openSlot } = await searchParams;
+  const { notice, error, slot: openSlot, from, to } = await searchParams;
+  // Архив: период дат (по времени студии), «по» — включительно.
+  const archive =
+    from && to && DATE_RE.test(from) && DATE_RE.test(to) && from <= to
+      ? {
+          from: dayStart(from),
+          to: dayStart(
+            new Date(Date.parse(`${to}T12:00:00Z`) + 86_400_000).toISOString().slice(0, 10),
+          ),
+        }
+      : undefined;
   const user = await getCurrentUser();
   const isAdmin = user?.role === "admin";
   const [slots, classes, staff] = await Promise.all([
-    getAdminSlots(),
+    getAdminSlots(archive),
     getClasses(),
     // Список сотрудников нужен только администратору (выбор преподавателя).
     isAdmin ? getAdminStaff() : Promise.resolve(null),
@@ -55,7 +87,27 @@ export default async function AdminSchedulePage({ searchParams }: { searchParams
     <div className="flex flex-col gap-6">
       <Notices notice={notice} error={error} />
 
-      {isAdmin && (
+      <form className="flex flex-wrap items-end gap-2 text-sm">
+        <span className="font-medium">Архив занятий:</span>
+        <label className="flex flex-col gap-1 text-xs font-medium">
+          с
+          <input type="date" name="from" defaultValue={from} className={`${INPUT_CLASS} py-1.5`} />
+        </label>
+        <label className="flex flex-col gap-1 text-xs font-medium">
+          по
+          <input type="date" name="to" defaultValue={to} className={`${INPUT_CLASS} py-1.5`} />
+        </label>
+        <button type="submit" className={`${GLASS_BUTTON_CLASS} px-4 py-1.5 text-sm`}>
+          Показать
+        </button>
+        {archive && (
+          <Link href="/admin/schedule" className={`${GLASS_BUTTON_CLASS} px-4 py-1.5 text-sm`}>
+            К ближайшим
+          </Link>
+        )}
+      </form>
+
+      {isAdmin && !archive && (
         <details className="rounded-[24px] glass-medium p-5" open={slots.data.length === 0}>
           <summary className="cursor-pointer font-heading text-lg font-bold tracking-tight">
             + Новое занятие
@@ -106,7 +158,11 @@ export default async function AdminSchedulePage({ searchParams }: { searchParams
 
       {slots.data.length === 0 ? (
         <EmptyState>
-          {isAdmin ? "Предстоящих занятий нет." : "Вам пока не назначены занятия."}
+          {archive
+            ? "За этот период занятий нет."
+            : isAdmin
+              ? "Предстоящих занятий нет."
+              : "Вам пока не назначены занятия."}
         </EmptyState>
       ) : (
         <ul className="flex flex-col gap-3">
@@ -117,6 +173,7 @@ export default async function AdminSchedulePage({ searchParams }: { searchParams
               expanded={slot.id === selectedId}
               participants={slot.id === selectedId && participants?.ok ? participants.data : null}
               teachers={isAdmin ? teachers : null}
+              archived={archive !== undefined}
             />
           ))}
         </ul>
@@ -156,12 +213,16 @@ function SlotRow({
   expanded,
   participants,
   teachers,
+  archived,
 }: {
   slot: AdminSlot;
   expanded: boolean;
   participants: AdminParticipant[] | null;
   // null — смотрит преподаватель: менять преподавателя нельзя.
   teachers: StaffMember[] | null;
+  // Архив: прошедшие занятия не переносятся (уже начавшееся не перенесёт
+  // и backend).
+  archived: boolean;
 }) {
   const status = STATUS[slot.status];
   const fill = slot.capacity > 0 ? Math.round((100 * slot.booked) / slot.capacity) : 0;
@@ -235,6 +296,31 @@ function SlotRow({
                 </li>
               ))}
             </ul>
+          )}
+
+          {editable && !archived && (
+            <form action={slotAction} className="flex flex-wrap items-end gap-2">
+              <input type="hidden" name="slot_id" value={slot.id} />
+              <input type="hidden" name="action" value="reschedule" />
+              <label className="flex flex-col gap-1 text-xs font-medium">
+                Перенести на дату
+                <input type="date" name="date" required className={`${INPUT_CLASS} py-1.5`} />
+              </label>
+              <label className="flex flex-col gap-1 text-xs font-medium">
+                время (студии)
+                <input type="time" name="time" required className={`${INPUT_CLASS} py-1.5`} />
+              </label>
+              <label className="flex flex-col gap-1 text-xs font-medium">
+                Причина
+                <input name="reason" maxLength={300} placeholder="необязательно" className={`${INPUT_CLASS} w-48 py-1.5`} />
+              </label>
+              <ConfirmSubmitButton
+                confirmMessage={`Перенести занятие? Записи и баланс сохранятся, записанные (${slot.booked}) получат уведомление и смогут отменить запись до нового начала.`}
+                className={`${GLASS_BUTTON_CLASS} px-3 py-1.5 text-sm`}
+              >
+                Перенести
+              </ConfirmSubmitButton>
+            </form>
           )}
 
           {editable && (

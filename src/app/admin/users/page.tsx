@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { getAdminUsers } from "@/lib/admin";
 import { isServiceFailure } from "@/lib/apiResult";
 import { GLASS_BUTTON_CLASS, INPUT_CLASS } from "@/lib/glass";
@@ -66,7 +67,16 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: S
                 >
                   <td className="px-4 py-3 font-medium">
                     <span className="flex flex-wrap items-center gap-2">
-                      {account.name}
+                      {account.telegram_id ? (
+                        <Link
+                          href={`/admin/users/${account.telegram_id}`}
+                          className="text-[var(--primary-text)] underline-offset-4 hover:underline"
+                        >
+                          {account.name}
+                        </Link>
+                      ) : (
+                        account.name
+                      )}
                       {account.role === "admin" && <Badge tone="success">админ</Badge>}
                       {account.role === "teacher" && <Badge tone="success">преподаватель</Badge>}
                     </span>

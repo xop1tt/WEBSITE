@@ -18,6 +18,7 @@ const ADMIN_LINKS = [
   { href: "/admin/schedule", label: "Расписание", roles: ["admin", "teacher"] },
   { href: "/admin/users", label: "Участники", roles: ["admin"] },
   { href: "/admin/payments", label: "Платежи", roles: ["admin"] },
+  { href: "/admin/finance", label: "Финансы", roles: ["admin"] },
   { href: "/admin/support", label: "Поддержка", roles: ["admin", "teacher"] },
   { href: "/admin/catalog", label: "Каталог", roles: ["admin"] },
   { href: "/admin/settings", label: "Настройки", roles: ["admin"] },

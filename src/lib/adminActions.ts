@@ -111,6 +111,18 @@ export async function slotAction(formData: FormData): Promise<void> {
       capacity: Number(formData.get("capacity")),
     });
     notice = "Вместимость изменена";
+  } else if (action === "reschedule") {
+    const date = String(formData.get("date") ?? "");
+    const time = String(formData.get("time") ?? "");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(time)) {
+      back("/admin/schedule", { error: "Укажите новую дату и время", slot: String(slotId) });
+    }
+    const reason = String(formData.get("reason") ?? "").trim();
+    result = await adminRequest("PATCH", `/api/admin/slots/${slotId}`, {
+      starts_at: `${date}T${time}:00${studioOffset(date, time)}`,
+      reason: reason || null,
+    });
+    notice = "Занятие перенесено, участники получат уведомление";
   } else if (action === "teacher") {
     result = await adminRequest("PUT", `/api/admin/slots/${slotId}/teacher`, {
       teacher_telegram_id: optionalId(formData.get("teacher_telegram_id")),
@@ -254,4 +266,109 @@ export async function studioRulesAction(formData: FormData): Promise<void> {
     back("/admin/settings", { error: result.message });
   }
   back("/admin/settings", { notice: "Правила сохранены и уже действуют" });
+}
+
+export async function supportReopenAction(formData: FormData): Promise<void> {
+  const ticketId = Number(formData.get("ticket_id"));
+  if (!Number.isInteger(ticketId) || ticketId <= 0) {
+    back("/admin/support", { error: "Некорректное обращение" });
+  }
+  const result = await adminRequest("POST", `/api/admin/support/${ticketId}/reopen`);
+  if (!result.ok) {
+    back(`/admin/support/${ticketId}`, { error: result.message });
+  }
+  back(`/admin/support/${ticketId}`, { notice: "Обращение снова открыто" });
+}
+
+/** Карточка участника: страница для возврата и путь API. */
+function clientPaths(formData: FormData): { path: string; api: string } {
+  const telegramId = Number(formData.get("telegram_id"));
+  if (!Number.isInteger(telegramId) || telegramId <= 0) {
+    back("/admin/users", { error: "Некорректный участник" });
+  }
+  return { path: `/admin/users/${telegramId}`, api: `/api/admin/clients/${telegramId}` };
+}
+
+export async function clientProfileAction(formData: FormData): Promise<void> {
+  const { path, api } = clientPaths(formData);
+  const result = await adminRequest("PATCH", `${api}/profile`, {
+    user_name: String(formData.get("user_name") ?? "").trim() || null,
+    phone: String(formData.get("phone") ?? "").trim() || null,
+  });
+  if (!result.ok) {
+    back(path, { error: result.message });
+  }
+  back(path, { notice: "Профиль сохранён" });
+}
+
+export async function grantPackageAction(formData: FormData): Promise<void> {
+  const { path, api } = clientPaths(formData);
+  const result = await adminRequest("POST", `${api}/grants`, {
+    package_key: String(formData.get("package_key") ?? ""),
+    reason: String(formData.get("reason") ?? "").trim(),
+    // Ключ формы: повторная отправка той же формы ничего не начислит.
+    idempotence_key: String(formData.get("idempotence_key") ?? ""),
+  });
+  if (!result.ok) {
+    back(path, { error: result.message });
+  }
+  const applied = (result.data as { applied?: boolean } | null)?.applied;
+  back(path, { notice: applied ? "Абонемент выдан, участник уведомлён" : "Эта выдача уже была сделана" });
+}
+
+export async function revokeGrantAction(formData: FormData): Promise<void> {
+  const { path } = clientPaths(formData);
+  const grantId = Number(formData.get("grant_id"));
+  const result = await adminRequest("POST", `/api/admin/grants/${grantId}/revoke`, {
+    reason: String(formData.get("reason") ?? "").trim(),
+  });
+  if (!result.ok) {
+    back(path, { error: result.message });
+  }
+  const lessons = (result.data as { lessons?: number } | null)?.lessons ?? 0;
+  back(path, { notice: `Абонемент отозван, списано занятий: ${lessons}` });
+}
+
+export async function adjustCreditsAction(formData: FormData): Promise<void> {
+  const { path, api } = clientPaths(formData);
+  const sign = formData.get("sign") === "-" ? -1 : 1;
+  const amount = Number(formData.get("amount"));
+  const result = await adminRequest("POST", `${api}/credits`, {
+    delta: sign * amount,
+    reason: String(formData.get("reason") ?? "").trim(),
+    idempotence_key: String(formData.get("idempotence_key") ?? ""),
+  });
+  if (!result.ok) {
+    back(path, { error: result.message });
+  }
+  const applied = (result.data as { applied?: boolean } | null)?.applied;
+  back(path, { notice: applied ? "Баланс изменён, участник уведомлён" : "Эта корректировка уже была применена" });
+}
+
+/** Платёж: возврат, сверка возврата или сверка оплаты с ЮKassa. */
+export async function paymentAction(formData: FormData): Promise<void> {
+  const paymentId = Number(formData.get("payment_id"));
+  const action = String(formData.get("action") ?? "");
+  const returnTo = String(formData.get("return_to") ?? "/admin/payments");
+  const path = returnTo.startsWith("/admin/") ? returnTo : "/admin/payments";
+  if (!Number.isInteger(paymentId) || paymentId <= 0) {
+    back(path, { error: "Некорректный платёж" });
+  }
+  let result;
+  if (action === "refund") {
+    result = await adminRequest("POST", `/api/admin/payments/${paymentId}/refund`, {
+      reason: String(formData.get("reason") ?? "").trim() || "Возврат по решению студии",
+    });
+  } else if (action === "refund-check") {
+    result = await adminRequest("POST", `/api/admin/payments/${paymentId}/refund-check`);
+  } else if (action === "check") {
+    result = await adminRequest("POST", `/api/admin/payments/${paymentId}/check`);
+  } else {
+    back(path, { error: "Неизвестное действие" });
+  }
+  if (!result.ok) {
+    back(path, { error: result.message });
+  }
+  const message = (result.data as { message?: string } | null)?.message ?? "Готово";
+  back(path, { notice: `Платёж №${paymentId}: ${message}` });
 }

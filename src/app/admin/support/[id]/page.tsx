@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getAdminThread } from "@/lib/admin";
-import { supportCloseAction, supportReplyAction } from "@/lib/adminActions";
+import { supportCloseAction, supportReopenAction, supportReplyAction } from "@/lib/adminActions";
 import { isServiceFailure } from "@/lib/apiResult";
 import { GLASS_BUTTON_CLASS, INPUT_CLASS, PRIMARY_BUTTON_CLASS } from "@/lib/glass";
 import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
@@ -101,6 +101,14 @@ export default async function AdminTicketPage({
             </ConfirmSubmitButton>
           </form>
         </div>
+      )}
+      {!isOpen && (
+        <form action={supportReopenAction}>
+          <input type="hidden" name="ticket_id" value={thread.id} />
+          <button type="submit" className={`${GLASS_BUTTON_CLASS} px-4 py-1.5 text-sm`}>
+            Открыть снова
+          </button>
+        </form>
       )}
     </div>
   );
