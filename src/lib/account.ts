@@ -71,6 +71,33 @@ export type PaymentHistoryItem = {
 
 // Ошибка — `ApiResult` с причиной, а не `null`/`[]`: пустой список и
 // "не удалось загрузить" страница показывает по-разному.
+export type UserPackage = {
+  kind: "payment" | "grant";
+  id: number;
+  package_key: string;
+  title: string;
+  lessons: number;
+  remaining: number;
+  status: string;
+  status_label: string;
+  acquired_at: string;
+  amount_minor: number | null;
+  // Когда сгорает остаток; null — бессрочно.
+  expires_at: string | null;
+};
+
+export type PackageSummary = {
+  balance: number;
+  // Бессрочные занятия (возврат за отменённые студией занятия после срока).
+  unallocated: number;
+  next_source_title: string | null;
+  packages: UserPackage[];
+};
+
+export function getMyPackages(): Promise<ApiResult<PackageSummary>> {
+  return fetchWithSession<PackageSummary>("/api/packages/me");
+}
+
 export function getProfile(): Promise<ApiResult<Profile>> {
   return fetchWithSession<Profile>("/api/users/me/profile");
 }

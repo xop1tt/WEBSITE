@@ -23,7 +23,7 @@ export default async function AdminSettingsPage({ searchParams }: { searchParams
     <div className="flex flex-col gap-6">
       <Notices notice={notice} error={error} />
       <section className="flex flex-col gap-4 rounded-[24px] glass-medium p-5">
-        <h2 className="font-heading text-lg font-bold tracking-tight">Правила записи</h2>
+        <h2 className="font-heading text-lg font-bold tracking-tight">Правила записи и сроки</h2>
         <p className="text-sm leading-relaxed text-[var(--text-secondary)]">
           Новые значения действуют сразу для всех записей и отмен — и в боте, и
           на сайте. Если студия перенесла занятие, записанные могут отменить его
@@ -58,6 +58,36 @@ export default async function AdminSettingsPage({ searchParams }: { searchParams
             />
             <span className="text-xs font-normal text-[var(--text-secondary)]">
               Защита от записи и отмены «туда-обратно»; 0 — без паузы
+            </span>
+          </label>
+          <label className="flex flex-col gap-1.5 text-sm font-medium">
+            Срок ручных начислений «± баланс», дней
+            <input
+              type="number"
+              name="manual_credit_validity_days"
+              min={1}
+              max={3650}
+              required
+              defaultValue={rules.data.manual_credit_validity_days}
+              className={INPUT_CLASS}
+            />
+            <span className="text-xs font-normal text-[var(--text-secondary)]">
+              Для следующих начислений; сроки абонементов — в «Каталоге»
+            </span>
+          </label>
+          <label className="flex flex-col gap-1.5 text-sm font-medium">
+            Предупреждать о сгорании за, дней
+            <input
+              type="number"
+              name="expiry_warning_days"
+              min={0}
+              max={60}
+              required
+              defaultValue={rules.data.expiry_warning_days}
+              className={INPUT_CLASS}
+            />
+            <span className="text-xs font-normal text-[var(--text-secondary)]">
+              Уведомление в Telegram и на сайте; 0 — не предупреждать
             </span>
           </label>
           <div className="sm:col-span-2">

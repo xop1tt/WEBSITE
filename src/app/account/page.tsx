@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { getProfile } from "@/lib/account";
+import { getMyPackages, getProfile, type PackageSummary } from "@/lib/account";
 import { getCurrentUser } from "@/lib/auth";
 import { SetCredentialsForm } from "@/components/SetCredentialsForm";
 import { isServiceFailure } from "@/lib/apiResult";
 import { ServiceUnavailableNotice } from "@/components/ServiceUnavailableNotice";
 import Link from "next/link";
-import { lessonsCount } from "@/lib/format";
+import { formatClassDateTime, lessonsCount } from "@/lib/format";
 import {
   GLASS_BUTTON_CLASS,
   PRIMARY_BUTTON_CLASS,
@@ -25,7 +25,11 @@ export default async function AccountProfilePage({
   searchParams: SearchParams;
 }) {
   const { credentials } = await searchParams;
-  const [result, currentUser] = await Promise.all([getProfile(), getCurrentUser()]);
+  const [result, currentUser, packages] = await Promise.all([
+    getProfile(),
+    getCurrentUser(),
+    getMyPackages(),
+  ]);
 
   if (!result.ok && result.error === "unauthorized") {
     redirect("/login");
@@ -93,7 +97,70 @@ export default async function AccountProfilePage({
           </Link>
         </div>
       </section>
+
+      {packages.ok && <MyPackages summary={packages.data} />}
     </div>
+  );
+}
+
+const DATE = new Intl.DateTimeFormat("ru-RU", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+});
+
+function MyPackages({ summary }: { summary: PackageSummary }) {
+  const active = summary.packages
+    .filter((item) => item.status === "active")
+    .sort((a, b) => (a.expires_at ?? "9999").localeCompare(b.expires_at ?? "9999"));
+  const finished = summary.packages.filter((item) => item.status !== "active").slice(-5);
+  if (active.length === 0 && finished.length === 0 && summary.unallocated === 0) {
+    return null;
+  }
+  return (
+    <section className="flex flex-col gap-4 rounded-[24px] glass-medium p-6">
+      <h2 className="font-heading text-xl font-bold tracking-tight">Мои абонементы</h2>
+      {active.length > 0 && (
+        <ul className="flex flex-col gap-2">
+          {active.map((item) => (
+            <li key={`${item.kind}-${item.id}`} className="flex flex-wrap items-baseline gap-x-3">
+              <span className="font-medium">{item.title}</span>
+              <span className="text-[var(--text-secondary)]">
+                осталось {item.remaining} из {item.lessons}
+              </span>
+              <span className="text-sm text-[var(--text-secondary)]">
+                {item.expires_at
+                  ? `действуют до ${formatClassDateTime(item.expires_at)}`
+                  : "бессрочно"}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {summary.unallocated > 0 && (
+        <p className="text-sm text-[var(--text-secondary)]">
+          Бессрочно (возврат за отменённые студией занятия):{" "}
+          {lessonsCount(summary.unallocated)}.
+        </p>
+      )}
+      {active.length > 1 && (
+        <p className="text-sm text-[var(--text-secondary)]">
+          Сначала расходуется абонемент, который сгорает раньше.
+        </p>
+      )}
+      {finished.length > 0 && (
+        <details className="text-sm">
+          <summary className="cursor-pointer text-[var(--text-secondary)]">Завершённые</summary>
+          <ul className="mt-2 flex flex-col gap-1 text-[var(--text-secondary)]">
+            {finished.map((item) => (
+              <li key={`${item.kind}-${item.id}`}>
+                {item.title} — {item.status_label} · с {DATE.format(new Date(item.acquired_at))}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </section>
   );
 }
 

@@ -247,6 +247,8 @@ export async function studioRulesAction(formData: FormData): Promise<void> {
   const result = await adminRequest("PUT", "/api/admin/settings", {
     cancellation_deadline_hours: intField(formData, "cancellation_deadline_hours"),
     rebook_cooldown_hours: intField(formData, "rebook_cooldown_hours"),
+    manual_credit_validity_days: intField(formData, "manual_credit_validity_days"),
+    expiry_warning_days: intField(formData, "expiry_warning_days"),
   });
   if (!result.ok) {
     back("/admin/settings", { error: result.message });

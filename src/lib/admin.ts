@@ -141,6 +141,8 @@ export type AdminLessonPackage = {
 export type StudioRules = {
   cancellation_deadline_hours: number;
   rebook_cooldown_hours: number;
+  manual_credit_validity_days: number;
+  expiry_warning_days: number;
 };
 
 export const getAdminClassFormats = () => adminGet<AdminClassFormat[]>("/api/admin/classes");
