@@ -22,6 +22,8 @@ export type ClassSlot = {
   capacity: number;
   remaining: number;
   status: string;
+  // Имя преподавателя для расписания, если назначен.
+  teacher_name: string | null;
 };
 
 export type LessonPackage = {

@@ -6,13 +6,12 @@ import { API_BASE_URL, backendHeaders, errorDetail } from "./backend";
 import { STUDIO_TIMEZONE } from "./format";
 
 /**
- * Изменяющие действия админ-панели. Права (администратор + привязанный
- * Telegram для изменений) проверяет backend; здесь — только перенаправление
- * с понятным сообщением.
+ * Изменяющие действия админ-панели. Права (роль сотрудника) проверяет
+ * backend; здесь — только перенаправление с понятным сообщением.
  */
 
 async function adminRequest(
-  method: "POST" | "PATCH",
+  method: "POST" | "PATCH" | "PUT" | "DELETE",
   path: string,
   body?: unknown,
 ): Promise<{ ok: true; data: unknown } | { ok: false; message: string; status: number | null }> {
@@ -38,7 +37,10 @@ async function adminRequest(
         : ((await errorDetail(response)) ?? "Не удалось выполнить действие");
     return { ok: false, message, status: response.status };
   }
-  return { ok: true, data: await response.json().catch(() => null) };
+  return {
+    ok: true,
+    data: response.status === 204 ? null : await response.json().catch(() => null),
+  };
 }
 
 function back(path: string, params: Record<string, string>): never {
@@ -58,11 +60,18 @@ function studioOffset(date: string, time: string): string {
   return offset === "" ? "+00:00" : offset;
 }
 
+/** Telegram ID из поля формы; пустое значение — null («без преподавателя»). */
+function optionalId(value: FormDataEntryValue | null): number | null {
+  const id = Number(value);
+  return Number.isInteger(id) && id > 0 ? id : null;
+}
+
 export async function createSlotAction(formData: FormData): Promise<void> {
   const classKey = String(formData.get("class_key") ?? "");
   const date = String(formData.get("date") ?? "");
   const time = String(formData.get("time") ?? "");
   const capacity = Number(formData.get("capacity"));
+  const teacher = optionalId(formData.get("teacher_telegram_id"));
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(time)) {
     back("/admin/schedule", { error: "Укажите дату и время" });
   }
@@ -72,6 +81,7 @@ export async function createSlotAction(formData: FormData): Promise<void> {
     class_key: classKey,
     starts_at: startsAt,
     capacity,
+    teacher_telegram_id: teacher,
   });
   if (!result.ok) {
     back("/admin/schedule", { error: result.message });
@@ -101,6 +111,11 @@ export async function slotAction(formData: FormData): Promise<void> {
       capacity: Number(formData.get("capacity")),
     });
     notice = "Вместимость изменена";
+  } else if (action === "teacher") {
+    result = await adminRequest("PUT", `/api/admin/slots/${slotId}/teacher`, {
+      teacher_telegram_id: optionalId(formData.get("teacher_telegram_id")),
+    });
+    notice = "Преподаватель изменён";
   } else {
     back("/admin/schedule", { error: "Неизвестное действие" });
   }
@@ -143,4 +158,36 @@ export async function supportCloseAction(formData: FormData): Promise<void> {
     back(`/admin/support/${ticketId}`, { error: result.message });
   }
   back("/admin/support", { notice: `Обращение №${ticketId} закрыто` });
+}
+
+export async function staffRoleAction(formData: FormData): Promise<void> {
+  const telegramId = Number(formData.get("telegram_id"));
+  const role = String(formData.get("role") ?? "");
+  if (!Number.isInteger(telegramId) || telegramId <= 0) {
+    back("/admin/staff", { error: "Telegram ID — положительное целое число" });
+  }
+  if (role !== "admin" && role !== "teacher") {
+    back("/admin/staff", { error: "Выберите роль" });
+  }
+  const displayName = String(formData.get("display_name") ?? "").trim();
+  const result = await adminRequest("PUT", `/api/admin/staff/${telegramId}`, {
+    role,
+    display_name: displayName || null,
+  });
+  if (!result.ok) {
+    back("/admin/staff", { error: result.message });
+  }
+  back("/admin/staff", { notice: "Роль сохранена" });
+}
+
+export async function staffRemoveAction(formData: FormData): Promise<void> {
+  const telegramId = Number(formData.get("telegram_id"));
+  if (!Number.isInteger(telegramId) || telegramId <= 0) {
+    back("/admin/staff", { error: "Некорректный сотрудник" });
+  }
+  const result = await adminRequest("DELETE", `/api/admin/staff/${telegramId}`);
+  if (!result.ok) {
+    back("/admin/staff", { error: result.message });
+  }
+  back("/admin/staff", { notice: "Роль снята" });
 }

@@ -90,6 +90,11 @@ function BookableScheduleCard({
             {formatClassDateTime(slot.starts_at)}
           </span>
         </div>
+        {slot.teacher_name && (
+          <div className="text-sm text-[var(--text-secondary)]">
+            Преподаватель: {slot.teacher_name}
+          </div>
+        )}
         <div className="text-sm font-medium text-[var(--primary-text)]">
           Свободно {placesLabel(slot.remaining)}
         </div>

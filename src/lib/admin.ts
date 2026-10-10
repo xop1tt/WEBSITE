@@ -49,6 +49,19 @@ export type AdminSlot = {
   status: "open" | "closed" | "cancelled";
   rescheduled: boolean;
   cancel_reason: string | null;
+  teacher_telegram_id: number | null;
+  teacher_name: string | null;
+};
+
+export type StaffMember = {
+  telegram_id: number;
+  role: "admin" | "teacher";
+  display_name: string | null;
+  user_name: string;
+  public_name: string;
+  phone: string | null;
+  has_web_account: boolean;
+  created_at: string;
 };
 
 export type AdminParticipant = {
@@ -68,6 +81,7 @@ export type AdminAccount = {
   phone: string | null;
   lesson_credits: number;
   is_admin: boolean;
+  role: "admin" | "teacher" | null;
   registered_at: string;
   last_seen_at: string | null;
 };
@@ -104,6 +118,7 @@ export type AdminThread = {
   messages: { id: number; sender_role: "user" | "admin"; body: string; created_at: string }[];
 };
 
+export const getAdminStaff = () => adminGet<StaffMember[]>("/api/admin/staff");
 export const getAdminDashboard = () => adminGet<AdminDashboard>("/api/admin/dashboard");
 export const getAdminSlots = () => adminGet<AdminSlot[]>("/api/admin/slots");
 export const getAdminParticipants = (slotId: number) =>

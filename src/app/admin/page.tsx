@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { getAdminDashboard } from "@/lib/admin";
+import { getCurrentUser } from "@/lib/auth";
 import { isServiceFailure } from "@/lib/apiResult";
 import { ServiceUnavailableNotice } from "@/components/ServiceUnavailableNotice";
 import { StatCard, formatRub } from "@/components/admin/AdminUi";
@@ -10,6 +12,10 @@ export const metadata: Metadata = {
 };
 
 export default async function AdminDashboardPage() {
+  // Преподавателю сводка недоступна — его раздел начинается с расписания.
+  if ((await getCurrentUser())?.role === "teacher") {
+    redirect("/admin/schedule");
+  }
   const result = await getAdminDashboard();
   if (!result.ok) {
     return isServiceFailure(result) ? (

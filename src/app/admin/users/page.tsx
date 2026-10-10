@@ -67,7 +67,8 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: S
                   <td className="px-4 py-3 font-medium">
                     <span className="flex flex-wrap items-center gap-2">
                       {account.name}
-                      {account.is_admin && <Badge tone="success">админ</Badge>}
+                      {account.role === "admin" && <Badge tone="success">админ</Badge>}
+                      {account.role === "teacher" && <Badge tone="success">преподаватель</Badge>}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-[var(--text-secondary)]">

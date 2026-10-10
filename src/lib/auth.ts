@@ -19,10 +19,14 @@ export type CurrentUser = {
   telegram_id: number | null;
   display_name: string;
   created_at: string;
-  // Только для отображения (ссылка на админку, окно нагрузки): права
-  // проверяет backend на каждом /api/admin/*.
+  // Только для отображения (ссылка на админку, её разделы, окно нагрузки):
+  // права проверяет backend на каждом /api/admin/*.
   is_admin: boolean;
+  // Роль сотрудника студии; null — не сотрудник.
+  role: StaffRole | null;
 };
+
+export type StaffRole = "admin" | "teacher";
 
 /**
  * - `authenticated` — backend подтвердил сессию;

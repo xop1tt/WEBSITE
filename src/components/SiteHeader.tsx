@@ -17,7 +17,7 @@ export async function SiteHeader() {
 
   const authSection = currentUser ? (
     <form action={logoutAction} className="flex flex-col items-start gap-1 md:flex-row md:items-center md:gap-2">
-      {currentUser.is_admin && <NavLink href="/admin">Админка</NavLink>}
+      {currentUser.role && <NavLink href="/admin">Админка</NavLink>}
       <NavLink href="/account">{currentUser.display_name}</NavLink>
       <button type="submit" className={`${NAV_ITEM_CLASS} text-[var(--text-secondary)] hover:text-[var(--primary-text)]`}>
         Выйти
@@ -69,7 +69,7 @@ export async function SiteHeader() {
             на освобождающуюся ширину, а не прыгает самостоятельно —
             визуально остаётся "в углу". */}
         <div className="header-right hidden items-center gap-3 md:flex">
-          <div className={`header-cta overflow-hidden ${currentUser?.is_admin ? "header-cta-wide" : ""}`}>
+          <div className={`header-cta overflow-hidden ${currentUser?.role ? "header-cta-wide" : ""}`}>
             {authSection}
           </div>
           <ThemeToggle />
