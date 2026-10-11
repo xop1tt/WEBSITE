@@ -35,10 +35,6 @@ export default function ContactPage() {
         <dl className="flex flex-col gap-4">
           <ContactRow label="Адрес" value={CONTACTS.address} />
           <ContactRow label="Телефон" value={CONTACTS.phone} href={`tel:${CONTACTS.phoneHref}`} />
-          <ContactRow
-            label="Telegram"
-            value={TELEGRAM_BOT_USERNAME ? `@${TELEGRAM_BOT_USERNAME}` : "Ссылка на Telegram-бота уточняется"}
-          />
           <ContactRow label="Email" value={CONTACTS.email} href={`mailto:${CONTACTS.email}`} />
         </dl>
         <StudioMap coords={CONTACTS.coords} address={CONTACTS.address} />
