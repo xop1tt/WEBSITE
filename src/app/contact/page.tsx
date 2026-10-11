@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import type { ReactNode } from "react";
 import { StudioMap } from "@/components/StudioMap";
 import { CONTACTS } from "@/lib/contacts";
+import { TelegramIcon } from "@/components/TelegramIcon";
 
 export const metadata: Metadata = {
   title: "Контакты",
@@ -14,27 +16,21 @@ export default function ContactPage() {
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-12 sm:py-16">
       <div className="flex flex-col gap-3">
-        <span className="eyebrow">Mirada Studio</span>
         <h1 className="font-heading text-4xl font-bold tracking-tight sm:text-5xl">Контакты</h1>
       </div>
       <p className="text-lg leading-relaxed text-[var(--text-secondary)]">
         Свяжитесь со студией любым удобным способом — поможем выбрать
         направление и время занятия.
       </p>
-      {TELEGRAM_BOT_USERNAME && (
-        <a
-          href={`https://t.me/${TELEGRAM_BOT_USERNAME}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="btn-primary w-fit gap-2 rounded-full px-6 py-3 text-base font-semibold"
-        >
-          Написать в Telegram
-        </a>
-      )}
       <div className="grid gap-6 rounded-[28px] glass-medium p-7 sm:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)]">
         <dl className="flex flex-col gap-4">
           <ContactRow label="Адрес" value={CONTACTS.address} />
-          <ContactRow label="Телефон" value={CONTACTS.phone} href={`tel:${CONTACTS.phoneHref}`} />
+          <ContactRow
+            label="Телефон"
+            value={CONTACTS.phone}
+            href={`tel:${CONTACTS.phoneHref}`}
+            action={TELEGRAM_BOT_USERNAME ? <TelegramLink username={TELEGRAM_BOT_USERNAME} /> : undefined}
+          />
           <ContactRow label="Email" value={CONTACTS.email} href={`mailto:${CONTACTS.email}`} />
         </dl>
         <StudioMap coords={CONTACTS.coords} address={CONTACTS.address} />
@@ -43,11 +39,37 @@ export default function ContactPage() {
   );
 }
 
-function ContactRow({ label, value, href }: { label: string; value: string; href?: string }) {
+// Иконка Telegram рядом с телефоном: фирменный голубой, ведёт в бота студии.
+function TelegramLink({ username }: { username: string }) {
+  return (
+    <a
+      href={`https://t.me/${username}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label="Написать в Telegram"
+      title="Написать в Telegram"
+      className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#229ED9] text-white transition-[filter,transform] hover:brightness-110 active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#229ED9]"
+    >
+      <TelegramIcon />
+    </a>
+  );
+}
+
+function ContactRow({
+  label,
+  value,
+  href,
+  action,
+}: {
+  label: string;
+  value: string;
+  href?: string;
+  action?: ReactNode;
+}) {
   return (
     <div className="flex flex-col gap-1">
       <dt className="font-medium">{label}</dt>
-      <dd className="break-words text-[var(--text-secondary)]">
+      <dd className="flex items-center gap-2.5 break-words text-[var(--text-secondary)]">
         {href ? (
           <a href={href} className="underline-offset-4 hover:text-[var(--text-primary)] hover:underline">
             {value}
@@ -55,6 +77,7 @@ function ContactRow({ label, value, href }: { label: string; value: string; href
         ) : (
           value
         )}
+        {action}
       </dd>
     </div>
   );

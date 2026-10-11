@@ -324,7 +324,7 @@ export default async function AdminClientPage({
           </ul>
         )}
         <Link href={`/admin/finance?telegram_id=${telegramId}`} className="text-sm text-[var(--primary-text)] underline-offset-4 hover:underline">
-          Вся история в «Финансах» →
+          Вся история в «Балансах» →
         </Link>
       </section>
 

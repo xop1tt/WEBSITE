@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { SERVICE_UNAVAILABLE_MESSAGE } from "./apiResult";
 import { API_BASE_URL, backendHeaders, errorDetail } from "./backend";
@@ -111,7 +112,12 @@ export async function slotAction(formData: FormData): Promise<void> {
   let notice = "";
   if (action === "close" || action === "reopen") {
     result = await adminRequest("POST", `/api/admin/slots/${slotId}/${action}`);
-    notice = action === "close" ? "Запись закрыта" : "Запись открыта";
+    if (result.ok) {
+      // Без редиректа: страница остаётся на месте, а бейдж на карточке
+      // («запись открыта» / «запись закрыта») обновляется на месте.
+      revalidatePath("/admin/schedule");
+      return;
+    }
   } else if (action === "cancel") {
     const reason = String(formData.get("reason") ?? "").trim();
     result = await adminRequest("POST", `/api/admin/slots/${slotId}/cancel`, {

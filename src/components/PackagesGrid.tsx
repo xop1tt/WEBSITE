@@ -56,17 +56,17 @@ export function PackagesGrid({ packages, isAuthenticated, hasTelegram = false }:
         return (
         <div
           key={lessonPackage.key}
-          className={`relative flex flex-col gap-3 rounded-[28px] glass-medium glass-specular p-7 ${
+          className={`relative flex flex-col gap-3 rounded-[28px] glass-medium p-7 ${
             isBestValue ? "glass-accent" : ""
           }`}
         >
           {isBestValue ? (
-            <span className="btn-primary pointer-events-none absolute -top-3 left-6 rounded-full px-3 py-1 text-xs font-semibold">
+            <span className="pointer-events-none absolute -top-3 left-6 z-10 rounded-full bg-[var(--primary)] px-3 py-1 text-xs font-semibold text-white shadow-[0_4px_10px_-3px_rgba(0,0,0,0.35)]">
               Выгодно
             </span>
           ) : (
             savings > 0 && (
-              <span className="glass-subtle absolute -top-3 left-6 rounded-full px-3 py-1 text-xs font-semibold text-[var(--accent-dark)]">
+              <span className="absolute -top-3 left-6 z-10 rounded-full border border-[var(--primary)] bg-[color-mix(in_srgb,var(--primary)_14%,var(--background))] px-3 py-1 text-xs font-semibold text-[var(--primary-text)] shadow-[0_4px_10px_-3px_rgba(0,0,0,0.25)]">
                 Экономия {formatPrice(savings)}
               </span>
             )

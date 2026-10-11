@@ -29,14 +29,14 @@ export function StudioMap({ coords, address }: { coords: Coords; address: string
   }, [open]);
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col">
       {/* Миниатюра не перехватывает прокрутку и жесты: iframe без событий,
           поверх — кнопка, разворачивающая карту. */}
       <button
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Развернуть карту"
-        className="group relative block h-44 w-full overflow-hidden rounded-[22px] border border-[var(--border)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
+        className="group relative block h-52 w-full overflow-hidden rounded-[22px] border border-[var(--border)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
       >
         <iframe
           src={widgetUrl(coords, 15)}
@@ -50,13 +50,6 @@ export function StudioMap({ coords, address }: { coords: Coords; address: string
             <path d="M12 3.5h4.5V8M8 16.5H3.5V12M16.5 3.5l-5 5M3.5 16.5l5-5" />
           </svg>
         </span>
-      </button>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="w-fit text-sm font-medium text-[var(--text-secondary)] underline decoration-dotted underline-offset-4 hover:text-[var(--text-primary)]"
-      >
-        Как добраться?
       </button>
 
       <dialog

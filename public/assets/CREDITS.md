@@ -14,6 +14,18 @@ Keep that in sync when adding or replacing assets.
 - Castanets (`src/components/home/StageArt.tsx`, `CastanetsArt`) — vector,
   drawn for this project (restored from the earlier homepage scene).
 
+## Placeholders in the "О нас" block (`public/assets/about/`)
+
+Temporary stand-ins until real studio photos exist; resized and converted to
+WebP, no other changes (the guitar is uncropped). All from Wikimedia Commons:
+
+- `el-jaleo.webp` — [El Jaleo](https://commons.wikimedia.org/wiki/File:John_Singer_Sargent_-_El_Jaleo.jpg),
+  John Singer Sargent (1882), public domain.
+- `spanish-dancer.webp` — [The Spanish Dancer](https://commons.wikimedia.org/wiki/File:Sargent_John_Singer_Spanish_Dancer.jpg),
+  John Singer Sargent, public domain.
+- `flamenco-guitar.webp` — [Flamenco Guitar, MET DP-13193-001](https://commons.wikimedia.org/wiki/File:Flamenco_Guitar_MET_DP-13193-001.jpg),
+  The Metropolitan Museum of Art, [CC0](https://creativecommons.org/publicdomain/zero/1.0/).
+
 ## Removed
 
 - `public/Flamenco_GettyImages-173193034.jpg.webp` — removed: the file name

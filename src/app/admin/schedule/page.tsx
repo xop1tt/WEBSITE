@@ -57,7 +57,7 @@ function studioOffsetLabel(date: string): string {
 
 const STATUS = {
   open: { label: "запись открыта", tone: "success" },
-  closed: { label: "запись закрыта", tone: "neutral" },
+  closed: { label: "запись закрыта", tone: "alert" },
   cancelled: { label: "отменено", tone: "danger" },
 } as const;
 
@@ -336,13 +336,32 @@ function SlotRow({
             scroll={false}
             className={`${GLASS_BUTTON_CLASS} px-3 py-1.5 text-sm`}
           >
-            {expanded ? "Скрыть" : "Участники"}
+            {expanded ? "Скрыть" : "Редактировать"}
           </Link>
           {slot.status === "open" && (
             <SlotButton slotId={slot.id} action="close" label="Закрыть запись" />
           )}
           {slot.status === "closed" && (
             <SlotButton slotId={slot.id} action="reopen" label="Открыть запись" />
+          )}
+          {editable && (
+            <form action={slotAction} className="flex flex-wrap items-center gap-2">
+              <input type="hidden" name="slot_id" value={slot.id} />
+              <input type="hidden" name="action" value="cancel" />
+              <input
+                name="reason"
+                maxLength={300}
+                placeholder="Причина отмены (необязательно)"
+                aria-label="Причина отмены"
+                className={`${INPUT_CLASS} w-52 py-1.5 text-sm`}
+              />
+              <ConfirmSubmitButton
+                confirmMessage={`Отменить занятие? Записанным (${slot.booked}) вернутся занятия и придут уведомления. Отмену нельзя откатить.`}
+                className="rounded-full bg-[var(--danger-bg)] px-3 py-1.5 text-sm font-medium text-[var(--danger-text)]"
+              >
+                Отменить занятие
+              </ConfirmSubmitButton>
+            </form>
           )}
         </div>
       </div>
@@ -462,25 +481,6 @@ function SlotRow({
                   </button>
                 </form>
               )}
-              <form action={slotAction} className="flex flex-wrap items-end gap-2">
-                <input type="hidden" name="slot_id" value={slot.id} />
-                <input type="hidden" name="action" value="cancel" />
-                <label className="flex flex-col gap-1 text-xs font-medium">
-                  Причина отмены
-                  <input
-                    name="reason"
-                    maxLength={300}
-                    placeholder="необязательно"
-                    className={`${INPUT_CLASS} w-56 py-1.5`}
-                  />
-                </label>
-                <ConfirmSubmitButton
-                  confirmMessage={`Отменить занятие? Записанным (${slot.booked}) вернутся занятия и придут уведомления. Отмену нельзя откатить.`}
-                  className="rounded-full bg-[var(--danger-bg)] px-3 py-1.5 text-sm font-medium text-[var(--danger-text)]"
-                >
-                  Отменить занятие
-                </ConfirmSubmitButton>
-              </form>
             </div>
           )}
         </div>

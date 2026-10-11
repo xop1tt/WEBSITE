@@ -46,9 +46,19 @@ function apiGet<T>(path: string): Promise<ApiResult<T>> {
   return requestJson<T>(`${API_BASE_URL}${path}`);
 }
 
-export function getSchedule(classKey?: string): Promise<ApiResult<ClassSlot[]>> {
+// Направления, которые сайт не показывает и на которые не даёт записаться
+// (индивидуальные занятия договариваются лично — см. «Контакты»). В боте и
+// в админке они остаются.
+export const SITE_HIDDEN_CLASS_KEYS: ReadonlySet<string> = new Set(["individual"]);
+
+export async function getSchedule(classKey?: string): Promise<ApiResult<ClassSlot[]>> {
   const query = classKey ? `?class_key=${encodeURIComponent(classKey)}` : "";
-  return apiGet<ClassSlot[]>(`/api/schedule${query}`);
+  const result = await apiGet<ClassSlot[]>(`/api/schedule${query}`);
+  if (!result.ok) return result;
+  return {
+    ...result,
+    data: result.data.filter((slot) => !SITE_HIDDEN_CLASS_KEYS.has(slot.class_key)),
+  };
 }
 
 export function getPackages(): Promise<ApiResult<LessonPackage[]>> {

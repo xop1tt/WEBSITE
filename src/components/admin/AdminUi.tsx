@@ -67,6 +67,8 @@ export function Notices({ notice, error }: { notice?: string; error?: string }) 
 const BADGE_TONES = {
   success: "bg-[var(--success-bg)] text-[var(--success-text)]",
   danger: "bg-[var(--danger-bg)] text-[var(--danger-text)]",
+  // Заметная сплошная плашка — состояние, которое админу нужно видеть сразу.
+  alert: "bg-[var(--danger)] font-semibold text-white",
   neutral: "glass-subtle text-[var(--text-secondary)]",
 } as const;
 

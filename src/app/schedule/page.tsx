@@ -1,14 +1,22 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { GLASS_BUTTON_CLASS } from "@/lib/glass";
+import { GLASS_BUTTON_CLASS, INPUT_CLASS, PRIMARY_BUTTON_CLASS } from "@/lib/glass";
 import { getBookingRules, getSchedule, type ClassSlot } from "@/lib/api";
 import { getMyBookedSlotIds, getMyRebookTimes, getMyWaitlistedSlotIds, getProfile } from "@/lib/account";
 import { getCurrentUser } from "@/lib/auth";
-import { balanceLabel, formatClassDateTime, groupByWeekAndDay, hoursLabel } from "@/lib/format";
+import {
+  addDays,
+  balanceLabel,
+  formatClassDateTime,
+  formatStudioDay,
+  groupByWeekAndDay,
+  hoursLabel,
+  studioDate,
+} from "@/lib/format";
 import { BookableScheduleList } from "@/components/BookableScheduleList";
 import { ServiceUnavailableNotice } from "@/components/ServiceUnavailableNotice";
 import { EmptyScheduleNotice } from "@/components/ScheduleList";
-import { ScheduleWeeks } from "@/components/ScheduleWeeks";
+import { ScheduleDays } from "@/components/ScheduleDays";
 import { getDirections } from "@/lib/directions";
 
 // «Записаться» — как раздел Telegram-бота: ближайшие свободные занятия с
@@ -26,6 +34,8 @@ type SearchParams = Promise<{
   already?: string;
   book_error?: string;
   waitlist?: string;
+  // Выбранная дата (YYYY-MM-DD) для поиска занятий.
+  date?: string;
 }>;
 
 export default async function SchedulePage({
@@ -39,6 +49,7 @@ export default async function SchedulePage({
     already,
     book_error: bookError,
     waitlist,
+    date: dateParam,
   } = await searchParams;
   const directions = await getDirections();
   const activeDirection = directions.find(
@@ -64,12 +75,39 @@ export default async function SchedulePage({
   const bookedSlot = booked
     ? slots.find((slot) => String(slot.id) === booked)
     : undefined;
+  // Ближайшее — первое со свободными местами (иначе просто первое); оно
+  // показано отдельной карточкой.
+  const nearest = openSlots.find((slot) => slot.remaining > 0) ?? openSlots[0];
+  // Ближайшие 7 дней (с сегодняшнего) — по датам; дальше — поиск по дате.
+  const today = todayStudioDate();
+  const weekEnd = addDays(today, 6);
+  const allDays = groupByWeekAndDay(openSlots).flatMap((week) => week.days);
+  const days = groupByWeekAndDay(
+    openSlots.filter((slot) => slot !== nearest && studioDate(slot.starts_at) <= weekEnd),
+  ).flatMap((week) => week.days);
+  const lastDay = allDays.at(-1)?.day;
+  const pickedDate = dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam) ? dateParam : undefined;
+  const pickedSlots = pickedDate
+    ? openSlots.filter((slot) => studioDate(slot.starts_at) === pickedDate)
+    : [];
+  const renderList = (items: ClassSlot[], timeOnly: boolean) => (
+    <BookableScheduleList
+      slots={items}
+      isAuthenticated={currentUser !== null}
+      classKey={activeDirection?.key ?? null}
+      cancellationDeadlineHours={rules.cancellation_deadline_hours}
+      bookedSlotIds={bookedSlotIds}
+      hasTelegram={currentUser?.telegram_id != null}
+      waitlistedSlotIds={waitlistedSlotIds}
+      rebookTimes={rebookTimes}
+      timeOnly={timeOnly}
+    />
+  );
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-8 px-4 py-12 sm:py-16">
       <div className="flex flex-col gap-3">
-        <span className="eyebrow">Ближайшие занятия</span>
-        <h1 className="font-heading text-4xl font-bold tracking-tight sm:text-5xl">Записаться</h1>
+        <h1 className="font-heading text-4xl font-bold tracking-tight sm:text-5xl">Ближайшие занятия</h1>
         <p className="text-[var(--text-secondary)]">
           Выберите занятие, чтобы записаться
           {profile ? ` · ${balanceLabel(profile.lesson_credits)}` : ""}.
@@ -117,25 +155,72 @@ export default async function SchedulePage({
 
       {/* Расписание не загрузилось — не «свободных занятий нет». */}
       {schedule.ok ? (
-        openSlots.length === 0 ? (
+        nearest === undefined ? (
           <EmptyScheduleNotice />
         ) : (
-          <ScheduleWeeks
-            weeks={groupByWeekAndDay(openSlots)}
-            renderDay={(items) => (
-              <BookableScheduleList
-                slots={items}
-                isAuthenticated={currentUser !== null}
-                classKey={activeDirection?.key ?? null}
-                cancellationDeadlineHours={rules.cancellation_deadline_hours}
-                bookedSlotIds={bookedSlotIds}
-                hasTelegram={currentUser?.telegram_id != null}
-                waitlistedSlotIds={waitlistedSlotIds}
-                rebookTimes={rebookTimes}
-                timeOnly
-              />
+          <>
+            <section className="flex flex-col gap-3" aria-labelledby="nearest-title">
+              <h2 id="nearest-title" className="font-heading text-xl font-bold tracking-tight">
+                Ближайшее занятие
+              </h2>
+              {renderList([nearest], false)}
+            </section>
+
+            {days.length > 0 && (
+              <section className="flex flex-col gap-3" aria-labelledby="dates-title">
+                <h2 id="dates-title" className="font-heading text-xl font-bold tracking-tight">
+                  Ближайшие 7 дней
+                </h2>
+                <ScheduleDays
+                  days={days}
+                  renderDay={(items) => renderList(items, true)}
+                  openDay={bookedSlot ? studioDate(bookedSlot.starts_at) : undefined}
+                />
+              </section>
             )}
-          />
+
+            <section className="flex flex-col gap-3" aria-labelledby="pick-title">
+              <h2 id="pick-title" className="font-heading text-xl font-bold tracking-tight">
+                Другая дата
+              </h2>
+              <form
+                action="/schedule"
+                method="get"
+                className="glass-medium flex flex-wrap items-end gap-3 rounded-[24px] p-4 sm:p-5"
+              >
+                {activeDirection && <input type="hidden" name="class_key" value={activeDirection.key} />}
+                <label className="flex min-w-0 flex-1 flex-col gap-1.5 text-sm text-[var(--text-secondary)]">
+                  Выберите дату занятия
+                  <input
+                    type="date"
+                    name="date"
+                    required
+                    min={today}
+                    max={lastDay}
+                    defaultValue={pickedDate}
+                    className={`${INPUT_CLASS} text-base text-[var(--text-primary)]`}
+                  />
+                </label>
+                <button type="submit" className={`${PRIMARY_BUTTON_CLASS} px-6 py-2.5 text-base`}>
+                  Найти занятия
+                </button>
+              </form>
+              {pickedDate && (
+                <div className="flex flex-col gap-3" aria-live="polite">
+                  <h3 className="text-sm font-semibold text-[var(--text-secondary)]">
+                    {formatStudioDay(pickedDate)}
+                  </h3>
+                  {pickedSlots.length > 0 ? (
+                    renderList(pickedSlots, true)
+                  ) : (
+                    <p className="glass-subtle rounded-2xl px-4 py-3 text-sm text-[var(--text-secondary)]">
+                      На эту дату занятий нет — попробуйте выбрать другую.
+                    </p>
+                  )}
+                </div>
+              )}
+            </section>
+          </>
         )
       ) : (
         <ServiceUnavailableNotice />
@@ -183,6 +268,11 @@ function BookedNotice({
       </Link>
     </div>
   );
+}
+
+// Отдельная функция: линтер считает текущее время в рендере нечистым.
+function todayStudioDate(): string {
+  return studioDate(new Date().toISOString());
 }
 
 function cancellationDeadline(startsAt: string, hours: number) {

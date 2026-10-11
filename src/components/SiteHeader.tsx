@@ -7,10 +7,15 @@ import { MobileNav } from "./MobileNav";
 import { ThemeToggle } from "./ThemeToggle";
 
 const NAV_LINKS = [
-  { href: "/schedule", label: "Записаться" },
   { href: "/packages", label: "Абонементы" },
+  { href: "/schedule", label: "Занятия" },
+  { href: "/teachers", label: "Преподаватели" },
   { href: "/contact", label: "Контакты" },
 ];
+
+// Подсветка активного круглого контрола шапки (кабинет, админка).
+const HEADER_ACTIVE_CLASS =
+  "!bg-[var(--primary)] !bg-none !text-white !border-transparent shadow-[0_6px_16px_-6px_rgba(0,0,0,0.45)]";
 
 const ICON_PROPS = {
   viewBox: "0 0 24 24",
@@ -42,9 +47,9 @@ function LogoutIcon() {
   );
 }
 
-function AdminIcon() {
+function AdminIcon({ size = 18 }: { size?: number }) {
   return (
-    <svg {...ICON_PROPS}>
+    <svg {...ICON_PROPS} width={size} height={size}>
       <rect x="4" y="4" width="6.5" height="6.5" rx="1.5" />
       <rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5" />
       <rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5" />
@@ -52,6 +57,9 @@ function AdminIcon() {
     </svg>
   );
 }
+
+// Только имя: display_name может содержать и фамилию.
+const firstName = (name: string) => name.trim().split(/\s+/)[0] ?? name;
 
 // Слот «кабинет / войти» — одно место в шапке для обоих состояний, высота
 // 40px как у круглых контролов. Кабинет до lg — круглая иконка, шире — иконка
@@ -70,11 +78,13 @@ function AccountSlot({ user }: { user: CurrentUser | null }) {
   return (
     <NavLink
       href="/account"
-      label={`Личный кабинет: ${user.display_name}`}
+      label={`Личный кабинет: ${firstName(user.display_name)}`}
       className={`${HEADER_CONTROL_CLASS} gap-1.5 lg:w-auto lg:max-w-[10.5rem] lg:px-3.5 xl:max-w-[13rem]`}
+      prefix
+      activeClassName={HEADER_ACTIVE_CLASS}
     >
       <UserIcon />
-      <span className="hidden min-w-0 truncate text-base font-semibold leading-normal lg:block">{user.display_name}</span>
+      <span className="hidden min-w-0 truncate text-base font-semibold leading-normal lg:block">{firstName(user.display_name)}</span>
     </NavLink>
   );
 }
@@ -93,9 +103,8 @@ export async function SiteHeader() {
       {/* Ширина капсулы не зависит от содержимого (w-full до max-w-5xl):
           вход и выход не сдвигают логотип и правую группу. Слева логотип,
           в середине навигация (занимает остаток и центрируется в нём), справа
-          контролы в постоянном порядке: [Админка] [Выйти] [Кабинет | Войти]
-          [Тема] — тема всегда у правого края, слот кабинета/входа вплотную к
-          ней в любом состоянии авторизации. */}
+          контролы в постоянном порядке: [Кабинет | Войти] [Админка] [Выйти]
+          [Тема] — тема всегда у правого края, кабинет/вход — первым слева. */}
       <div className="site-header-bar mx-auto flex w-full max-w-5xl items-center gap-2 sm:gap-3">
         <Link
           href="/"
@@ -116,11 +125,7 @@ export async function SiteHeader() {
         </nav>
 
         <div className="hidden shrink-0 items-center gap-2 md:flex">
-          {currentUser?.role && (
-            <NavLink href="/admin" label="Админка" className={HEADER_CONTROL_CLASS}>
-              <AdminIcon />
-            </NavLink>
-          )}
+          <AccountSlot user={currentUser} />
           {currentUser && (
             <form action={logoutAction} className="flex">
               <button
@@ -133,12 +138,14 @@ export async function SiteHeader() {
               </button>
             </form>
           )}
-          <AccountSlot user={currentUser} />
-          <ThemeToggle />
+          {/* Тема: от 1136px стоит отдельно справа от шапки (ниже). */}
+          <span className="contents min-[1136px]:hidden">
+            <ThemeToggle />
+          </span>
         </div>
 
-        {/* Компактная шапка на мобильном: лого + кнопка записи + тема + меню.
-            Кабинет/вход и выход — в меню, всегда в его нижнем блоке. */}
+        {/* Компактная шапка на мобильном: лого + кнопка записи + меню.
+            Кабинет — иконка в шапке, админка/выход — в меню, в его нижнем блоке. */}
         <div className="ml-auto flex shrink-0 items-center gap-1.5 md:hidden">
           <Link
             href="/schedule"
@@ -146,15 +153,20 @@ export async function SiteHeader() {
           >
             Записаться
           </Link>
-          <ThemeToggle />
+          {/* Вместо темы — кабинет (или вход); тема переехала в меню. */}
+          <NavLink
+            href={currentUser ? "/account" : "/login"}
+            label={currentUser ? `Личный кабинет: ${firstName(currentUser.display_name)}` : "Войти"}
+            className={HEADER_CONTROL_CLASS}
+            prefix
+            activeClassName={HEADER_ACTIVE_CLASS}
+          >
+            <UserIcon />
+          </NavLink>
           <MobileNav links={NAV_LINKS}>
             <div className="mt-2 flex flex-col items-stretch gap-1 border-t border-[var(--border)] pt-2">
               {currentUser ? (
                 <>
-                  {currentUser.role && <NavLink href="/admin">Админка</NavLink>}
-                  <NavLink href="/account">
-                    <span className="min-w-0 truncate leading-normal">{currentUser.display_name}</span>
-                  </NavLink>
                   <form action={logoutAction} className="flex flex-col">
                     <button type="submit" className={`${NAV_ITEM_CLASS} text-[var(--text-secondary)] hover:text-[var(--primary-text)]`}>
                       Выйти
@@ -169,10 +181,33 @@ export async function SiteHeader() {
                   Войти
                 </Link>
               )}
+              <div className="flex items-center justify-between gap-3 px-3.5 py-1 text-base text-[var(--text-secondary)]">
+                <span>Тема оформления</span>
+                <ThemeToggle />
+              </div>
             </div>
           </MobileNav>
         </div>
       </div>
+      {/* Тема — отдельной кнопкой справа от шапки, на одном с ней уровне. */}
+      <div className="pointer-events-auto absolute right-5 top-[23px] hidden min-[1136px]:block">
+        <ThemeToggle extraClass="glass-float" />
+      </div>
+      {/* Админка (только сотрудникам) — крупная плавающая кнопка в правом
+          нижнем углу сайта. */}
+      {currentUser?.role && (
+        <div className="pointer-events-auto fixed bottom-5 right-5 z-40 sm:bottom-6 sm:right-6">
+          <NavLink
+            href="/admin"
+            label="Админка"
+            className="glass-subtle glass-float glass-interactive flex h-14 w-14 items-center justify-center rounded-full text-[var(--text-primary)] shadow-[0_10px_28px_-10px_rgba(0,0,0,0.5)]"
+            prefix
+            activeClassName={HEADER_ACTIVE_CLASS}
+          >
+            <AdminIcon size={26} />
+          </NavLink>
+        </div>
+      )}
     </header>
   );
 }

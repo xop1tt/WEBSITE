@@ -13,7 +13,7 @@ import {
 } from "@/components/admin/ParticipantFilter";
 
 export const metadata: Metadata = {
-  title: "Финансы",
+  title: "Балансы",
 };
 
 type SearchParams = Promise<{

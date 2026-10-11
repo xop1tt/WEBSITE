@@ -30,7 +30,7 @@ const GROUPS: readonly Group[] = [
     label: "Деньги",
     items: [
       { href: "/admin/payments", label: "Платежи", roles: ["admin"] },
-      { href: "/admin/finance", label: "Финансы", roles: ["admin"] },
+      { href: "/admin/finance", label: "Балансы", roles: ["admin"] },
       { href: "/admin/reports", label: "Отчёты", roles: ["admin"] },
     ],
   },

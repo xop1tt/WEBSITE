@@ -12,6 +12,8 @@ export function NavLink({
   children,
   className,
   label,
+  prefix = false,
+  activeClassName,
 }: {
   href: string;
   children: React.ReactNode;
@@ -20,9 +22,13 @@ export function NavLink({
   className?: string;
   // Подпись для иконки без текста (aria-label и подсказка).
   label?: string;
+  // Считать активной и вложенные страницы (/admin/schedule для /admin).
+  prefix?: boolean;
+  // Дополнительные классы для активной ссылки (подсветка круглых контролов).
+  activeClassName?: string;
 }) {
   const pathname = usePathname();
-  const isActive = pathname === href;
+  const isActive = pathname === href || (prefix && pathname.startsWith(`${href}/`));
 
   return (
     <Link
@@ -32,7 +38,7 @@ export function NavLink({
       title={label}
       className={`${className ?? NAV_ITEM_CLASS} ${
         isActive
-          ? "text-[var(--primary-text)]"
+          ? `text-[var(--primary-text)] ${activeClassName ?? ""}`
           : `${className ? "" : "text-[var(--text-secondary)]"} hover:text-[var(--primary-text)]`
       }`}
     >

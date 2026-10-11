@@ -19,17 +19,17 @@ const LABELS: Record<ResolvedTheme, string> = {
   dark: "Тёмная тема",
 };
 
-function ThemeIcon({ resolved }: { resolved: ResolvedTheme }) {
+function ThemeIcon({ resolved, size }: { resolved: ResolvedTheme; size: number }) {
   if (resolved === "light") {
     return (
-      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
         <circle cx="12" cy="12" r="4.5" />
         <path d="M12 2.5v2.5M12 19v2.5M4.6 4.6l1.8 1.8M17.6 17.6l1.8 1.8M2.5 12H5M19 12h2.5M4.6 19.4l1.8-1.8M17.6 6.4l1.8-1.8" />
       </svg>
     );
   }
   return (
-    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a6.8 6.8 0 0 0 10.5 10.5Z" />
     </svg>
   );
@@ -41,7 +41,7 @@ function ThemeIcon({ resolved }: { resolved: ResolvedTheme }) {
 // THEME_INIT_SCRIPT в layout.tsx и resolveTheme в lib/theme.ts — preference
 // "system" там никуда не делась, просто кнопка больше не предлагает выбрать
 // её явно и всегда переключает между light/dark).
-export function ThemeToggle() {
+export function ThemeToggle({ extraClass = "" }: { extraClass?: string }) {
   const preference = useSyncExternalStore(
     subscribeThemePreference,
     getThemePreference,
@@ -87,9 +87,9 @@ export function ThemeToggle() {
       // поэтому подпись может на долю секунды отличаться от финальной —
       // ожидаемо и безопасно, гасим предупреждение React об этом.
       suppressHydrationWarning
-      className={`${HEADER_CONTROL_CLASS} hover:text-[var(--primary-text)]`}
+      className={`${HEADER_CONTROL_CLASS} hover:text-[var(--primary-text)] ${extraClass}`}
     >
-      <ThemeIcon resolved={resolved} />
+      <ThemeIcon resolved={resolved} size={18} />
     </button>
   );
 }

@@ -109,7 +109,7 @@ function BookableScheduleCard({
 }) {
   const full = !isBookable(slot);
   return (
-    <li className="flex flex-wrap items-center justify-between gap-3 rounded-[24px] glass-medium glass-specular p-5">
+    <li className="flex flex-wrap items-center justify-between gap-3 rounded-[24px] glass-medium p-5">
       <div className="flex flex-col gap-2">
         <div className="flex flex-wrap items-baseline gap-2">
           <span className="font-medium">{slot.class_label}</span>

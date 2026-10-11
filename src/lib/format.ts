@@ -122,6 +122,11 @@ export function studioDate(isoString: string): string {
   return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
+/** Дата «YYYY-MM-DD» со сдвигом на n дней. */
+export function addDays(ymd: string, n: number): string {
+  return new Date(ymdToUtc(ymd).getTime() + n * DAY_MS).toISOString().slice(0, 10);
+}
+
 function ymdToUtc(ymd: string): Date {
   return new Date(`${ymd}T00:00:00Z`);
 }

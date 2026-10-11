@@ -8,7 +8,7 @@ const HEADER_DENSITY_DISTANCE = 240;
 const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
 // Блик под курсором убран на интерактивных элементах (кнопки, nav, —
 // .glass-interactive) по запросу; на некликабельных карточках
-// (.glass-specular — ScheduleCard/PackagesGrid) он остался.
+// (.glass-specular) он остался.
 const SPECULAR_SELECTOR = ".glass-specular";
 
 /**
