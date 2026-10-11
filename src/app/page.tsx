@@ -9,7 +9,7 @@ import { formatClassDateTime } from "@/lib/format";
 import { GLASS_BUTTON_CLASS, PRIMARY_BUTTON_CLASS } from "@/lib/glass";
 import { BookableScheduleList } from "@/components/BookableScheduleList";
 import { DirectionsStackCarousel } from "@/components/DirectionsStackCarousel";
-import { HomeStory, type SceneLink } from "@/components/HomeStory";
+import { HomeStory } from "@/components/HomeStory";
 import { HomeStage } from "@/components/home/HomeStage";
 
 const TELEGRAM_BOT_USERNAME = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME;
@@ -34,21 +34,9 @@ const WHY_US = [
   },
 ];
 
-// Сцены главной по порядку — id секции = якорь (/#directions) и подпись
-// точки в навигации по сценам.
-const SCENES: SceneLink[] = [
-  { id: "hero", label: "Начало" },
-  { id: "directions", label: "Направления" },
-  { id: "about", label: "О студии" },
-  { id: "schedule", label: "Записаться" },
-];
-
-// Главная — последовательность полноэкранных сцен (HomeStory): камера
-// переходит из сцены в сцену, а не страница листается секциями. Внутри
-// сцены data-layer — слои контента, которые хореография двигает с
-// параллаксом по data-depth (больше — ближе к камере, быстрее), data-blur —
-// слой можно размывать в переходе (только не стеклянные блоки: blur
-// родителя ломает backdrop-filter стекла внутри него).
+// Главная — обычная страница из секций (HomeStory). Фон-сцена с веером и
+// кастаньетами лежит позади hero; с началом прокрутки реквизит улетает
+// вверх и возвращается, когда листают обратно к hero.
 export default async function HomePage() {
   const [scheduleResult, directions, currentUser, rules] = await Promise.all([
     getSchedule(),
@@ -72,11 +60,11 @@ export default async function HomePage() {
     schedule.length > 0 ? "Записаться на занятие" : "Оставить заявку";
 
   return (
-    <HomeStory stage={<HomeStage />} scenes={SCENES}>
+    <HomeStory stage={<HomeStage />}>
       <Scene id="hero" dark labelledBy="hero-title">
         <div className="mx-auto w-full max-w-6xl px-5 sm:px-6">
           <div className="stage-copy flex max-w-xl flex-col items-start gap-4 text-left">
-            <div data-layer data-depth="1" data-blur className="flex flex-col items-start gap-3">
+            <div className="flex flex-col items-start gap-3">
               <span className="eyebrow">Студия фламенко</span>
               <h1
                 id="hero-title"
@@ -85,16 +73,12 @@ export default async function HomePage() {
                 Mirada Studio
               </h1>
             </div>
-            <p
-              data-layer
-              data-depth="1.15"
-              data-blur
-              className="text-lg leading-relaxed text-[var(--text-secondary)] sm:text-xl"
+            <p className="text-lg leading-relaxed text-[var(--text-secondary)] sm:text-xl"
             >
               Танец фламенко для начинающих и продолжающих: живой ритм,
               работа с телом и характером — в группе или индивидуально.
             </p>
-            <div data-layer data-depth="1.3" className="mt-1 flex flex-wrap gap-3 [text-shadow:none]">
+            <div className="mt-1 flex flex-wrap gap-3 [text-shadow:none]">
               <Link href={heroCtaHref} className={`${PRIMARY_BUTTON_CLASS} px-7 py-3.5 text-base`}>
                 {heroCtaLabel}
               </Link>
@@ -112,11 +96,13 @@ export default async function HomePage() {
             {nextClass && (
               <Link
                 href="/schedule"
-                data-layer
-                data-depth="1.5"
                 className="glass-subtle glass-float glass-interactive mt-2 inline-flex items-center gap-3 rounded-2xl px-4 py-2.5 text-sm [text-shadow:none]"
               >
-                <span className="h-2 w-2 shrink-0 rounded-full bg-[var(--primary)]" aria-hidden="true" />
+                <span
+                  className={`availability-dot ${isBookable(nextClass) ? "availability-dot--free" : "availability-dot--full"}`}
+                  role="img"
+                  aria-label={isBookable(nextClass) ? "Есть свободные места" : "Мест нет"}
+                />
                 <span className="flex flex-col">
                   <span className="text-xs uppercase tracking-[0.14em] text-[var(--text-muted)]">
                     Ближайшее занятие
@@ -129,23 +115,25 @@ export default async function HomePage() {
             )}
           </div>
         </div>
-        <div data-hint className="scroll-hint glass-subtle glass-float">
-          <span>Листайте</span>
-          <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M8 3v10M3.5 8.5 8 13l4.5-4.5" />
-          </svg>
+        <div className="scroll-hint glass-subtle glass-float">
+          <span className="scroll-hint__inner">
+            <span>Листайте</span>
+            <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M8 3v10M3.5 8.5 8 13l4.5-4.5" />
+            </svg>
+          </span>
         </div>
       </Scene>
 
       <Scene id="directions" labelledBy="directions-title">
         <div className="mx-auto w-full max-w-5xl px-4">
-          <div data-layer data-depth="0.8" data-blur className="mb-4 flex flex-col items-center gap-3 text-center">
+          <div className="mb-4 flex flex-col items-center gap-3 text-center">
             <span className="eyebrow">Наши направления</span>
             <h2 id="directions-title" className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">
               Выберите подходящее
             </h2>
           </div>
-          <div data-layer data-depth="1.15">
+          <div>
             <DirectionsStackCarousel directions={directions} />
           </div>
         </div>
@@ -153,17 +141,14 @@ export default async function HomePage() {
 
       <Scene id="about" labelledBy="about-title">
         <div className="mx-auto w-full max-w-5xl px-4">
-          <div data-layer data-depth="1" className="glass-medium glass-float rounded-[32px] px-5 py-7 sm:px-10 sm:py-9">
-            <div data-layer data-depth="0.05" data-blur className="mb-3.5 flex flex-col items-center gap-3 text-center">
+          <div className="glass-medium glass-float rounded-[32px] px-5 py-7 sm:px-10 sm:py-9">
+            <div className="mb-3.5 flex flex-col items-center gap-3 text-center">
               <span className="eyebrow">О нас</span>
               <h2 id="about-title" className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">
                 Почему мы?
               </h2>
             </div>
             <p
-              data-layer
-              data-depth="0.08"
-              data-blur
               className="mx-auto mb-6 max-w-2xl text-center text-base leading-relaxed text-[var(--text-secondary)] sm:mb-8"
             >
               Mirada Studio — пространство для тех, кто хочет танцевать
@@ -172,12 +157,9 @@ export default async function HomePage() {
               месте, через тот же Telegram-аккаунт, что и в боте студии.
             </p>
             <div className="grid gap-3 sm:grid-cols-3 sm:gap-0 sm:divide-x sm:divide-[var(--glass-border)]">
-              {WHY_US.map((item, i) => (
+              {WHY_US.map((item) => (
                 <div
                   key={item.text}
-                  data-layer
-                  data-depth={(0.1 + i * 0.04).toFixed(2)}
-                  data-blur
                   className="flex items-center gap-4 text-left sm:flex-col sm:gap-3 sm:px-6 sm:text-center"
                 >
                   <WhyUsIcon variant={item.icon} />
@@ -193,13 +175,13 @@ export default async function HomePage() {
 
       <Scene id="schedule" labelledBy="schedule-title">
         <div className="mx-auto w-full max-w-3xl px-4">
-          <div data-layer data-depth="0.8" data-blur className="mb-6 flex flex-col items-center gap-3 text-center">
+          <div className="mb-6 flex flex-col items-center gap-3 text-center">
             <span className="eyebrow">Записаться</span>
             <h2 id="schedule-title" className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">
               Ближайшие занятия
             </h2>
           </div>
-          <div data-layer data-depth="1.1">
+          <div>
             {scheduleResult.ok ? (
               <BookableScheduleList
                 slots={upcoming}
@@ -216,7 +198,7 @@ export default async function HomePage() {
             )}
           </div>
           {schedule.length > upcoming.length && (
-            <div data-layer data-depth="1.3" className="mt-6 flex justify-center">
+            <div className="mt-6 flex justify-center">
               <Link href="/schedule" className={`${GLASS_BUTTON_CLASS} glass-float px-6 py-3 text-sm font-semibold`}>
                 Все занятия →
               </Link>
@@ -229,10 +211,7 @@ export default async function HomePage() {
   );
 }
 
-// Сцена: section = слой камеры; data-scene-scroll — обёртка, которую
-// движок сдвигает по Y в удержании (дрейф и прокрутка высокого контента);
-// .scene-inner центрируется, пока помещается, и прижимается к верху, когда
-// выше экрана.
+// Секция главной; dark — тёмный кадр hero поверх фона-сцены.
 function Scene({
   id,
   dark = false,
@@ -247,13 +226,10 @@ function Scene({
   return (
     <section
       id={id}
-      data-scene={id}
       aria-labelledby={labelledBy}
       className={dark ? "scene scene--dark stage-dark" : "scene"}
     >
-      <div className="scene-scroll" data-scene-scroll>
-        <div className="scene-inner">{children}</div>
-      </div>
+      {children}
     </section>
   );
 }

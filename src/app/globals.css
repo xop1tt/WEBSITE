@@ -841,22 +841,20 @@ body:has(.scenes) .site-header {
 }
 
 /* ==========================================================================
-   Главная — последовательность полноэкранных сцен (HomeStory + sceneEngine).
-
-   Статика (без JS / prefers-reduced-motion): сцены — обычные блоки в
-   потоке, фон-сцена (.stage) лежит позади hero, финальная сцена получает
-   свой тёмный фон. Это и есть "кадр progress 0" + читаемый лонгрид.
-
-   Живой режим (.scenes[data-live], ставит sceneEngine): .scenes-viewport —
-   sticky-камера высотой в экран, сцены — абсолютные слои внутри неё,
-   высоту трека задаёт движок. Кликабельна только активная сцена.
+   Главная — обычная страница из секций (HomeStory). Фон-сцена (.stage)
+   лежит позади hero и мягко растворяется в фоне страницы; веер и
+   кастаньеты с началом прокрутки улетают вверх (.scenes[data-props-away],
+   ставит HomeStory) и возвращаются, когда листают обратно к hero.
    ========================================================================== */
 .scenes {
   position: relative;
 }
 
+/* Веер выступает за правый край — без горизонтальной прокрутки; по
+   вертикали не обрезаем, чтобы реквизит улетал за верх окна. */
 .scenes-viewport {
   position: relative;
+  overflow-x: clip;
 }
 
 .scenes-layer {
@@ -873,73 +871,19 @@ body:has(.scenes) .site-header {
   color: var(--text-primary);
 }
 
-.scene[data-scene="hero"] {
+#hero.scene {
   display: flex;
   align-items: center;
   min-height: 100svh;
   padding: calc(var(--header-space) + 24px) 0 112px;
 }
 
-.scene-scroll,
-.scene-inner {
-  width: 100%;
-}
-
-.scenes[data-live] .scenes-viewport {
-  position: sticky;
-  top: 0;
-  height: 100vh;
-  height: 100lvh;
-  overflow: hidden;
-  overflow: clip;
-  isolation: isolate;
-  background: #070304;
-}
-
-.scenes[data-live] .scenes-layer {
-  position: absolute;
-  inset: 0;
-}
-
-/* Внизу — запас под мобильную панель браузера: камера высотой 100lvh, а
-   видимая часть может быть 100svh. */
-.scenes[data-live] .scene {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  padding: calc(var(--header-space) + 12px) 0 max(20px, calc(100lvh - 100svh + 20px));
-}
-
-.scenes[data-live] .scene[data-scene="hero"] {
-  padding-bottom: max(72px, calc(100lvh - 100svh + 72px));
-}
-
-.scenes[data-live] .scene:not([data-active]) {
-  pointer-events: none;
-}
-
-.scenes[data-live] .scene-scroll {
-  display: flex;
-  flex: 1 1 auto;
-  flex-direction: column;
-  min-height: 0;
-}
-
-/* margin-block: auto — "безопасное" центрирование: пока контент помещается,
-   он по центру; выше экрана — прижат к верху (движок докручивает остаток
-   в удержании сцены). */
-.scenes[data-live] .scene-inner {
-  margin-block: auto;
-}
-
-/* Подсказка "Листайте" — исчезает с первым движением скролла. */
+/* Подсказка "Листайте" — гаснет вместе с улетающим реквизитом. */
 .scroll-hint {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: max(24px, calc(100lvh - 100svh + 24px));
+  bottom: 24px;
   width: max-content;
   margin-inline: auto;
   display: inline-flex;
@@ -952,14 +896,61 @@ body:has(.scenes) .site-header {
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--text-secondary);
+  transition: opacity 0.4s ease, translate 0.4s ease;
+}
+
+.scenes[data-props-away] .scroll-hint {
+  opacity: 0;
+  translate: 0 12px;
+  pointer-events: none;
+}
+
+/* Прыгает внутренняя обёртка: у внешнего .scroll-hint свой translate
+   (исчезновение при прокрутке). */
+.scroll-hint__inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  animation: scroll-hint-bounce 1.6s cubic-bezier(0.28, 0.84, 0.42, 1) infinite;
+}
+
+@keyframes scroll-hint-bounce {
+  0%, 55%, 100% { transform: translateY(0); }
+  20% { transform: translateY(-7px); }
+  38% { transform: translateY(0); }
+  46% { transform: translateY(-3px); }
+}
+
+/* Индикатор наличия мест: зелёный — есть, красный — нет; мягкая пульсация. */
+.availability-dot {
+  position: relative;
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: var(--dot, #22a55a);
+  box-shadow: 0 0 0 0 var(--dot, #22a55a);
+  animation: availability-pulse 2s ease-out infinite;
+}
+
+.availability-dot--free { --dot: #22a55a; }
+.availability-dot--full { --dot: var(--danger); }
+
+@keyframes availability-pulse {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--dot) 55%, transparent); }
+  70%, 100% { box-shadow: 0 0 0 7px color-mix(in srgb, var(--dot) 0%, transparent); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scroll-hint__inner,
+  .availability-dot {
+    animation: none;
+  }
 }
 
 /* На узком и портретном экране реквизит стоит под текстом hero — там
    подсказка ложилась бы на веер. */
-.scenes:not([data-live]) .scroll-hint {
-  display: none;
-}
-
 @media (max-width: 767px), (max-aspect-ratio: 10 / 11) {
   .scroll-hint {
     display: none;
@@ -977,23 +968,20 @@ body:has(.scenes) .site-header {
   left: 0;
   right: 0;
   top: 0;
-  height: 100svh;
+  /* Кадр hero целиком тёмный, растворение — ниже его края. */
+  height: calc(100svh + var(--stage-fade));
   z-index: 0;
   overflow: hidden;
   pointer-events: none;
   background: #070304;
 }
 
-/* Статика: тёмный кадр hero мягко растворяется в фоне страницы, а не
-   обрывается ровной линией. */
-.scenes:not([data-live]) .stage {
-  -webkit-mask-image: linear-gradient(to bottom, #000 82%, transparent);
-  mask-image: linear-gradient(to bottom, #000 82%, transparent);
-}
-
-.scenes[data-live] .stage {
-  inset: 0;
-  height: auto;
+/* Тёмный кадр hero мягко растворяется в фоне страницы, а не обрывается
+   ровной линией. */
+.stage {
+  --stage-fade: 160px;
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - var(--stage-fade)), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - var(--stage-fade)), transparent);
 }
 
 .stage > * {
@@ -1046,53 +1034,7 @@ body:has(.scenes) .site-header {
   mask-image: linear-gradient(to bottom, #000 25%, transparent 92%);
 }
 
-/* Тон средних сцен — уже тема сайта (светлая/тёмная): фон "превращается"
-   из театра в пространство студии. Блики и горошек внутри двигаются с
-   параллаксом медленнее контента — глубина. */
-.stage-tone {
-  inset: 0;
-  opacity: 0;
-  overflow: hidden;
-  background: var(--background);
-}
-
-.stage-tone > * {
-  position: absolute;
-}
-
-.stage-glow {
-  width: 120vmax;
-  height: 120vmax;
-  border-radius: 50%;
-}
-
-.stage-glow--wine {
-  left: calc(14% - 60vmax);
-  top: calc(66% - 60vmax);
-  background: radial-gradient(closest-side, color-mix(in srgb, var(--primary) 24%, transparent), transparent);
-}
-
-.stage-glow--rose {
-  left: calc(90% - 60vmax);
-  top: calc(26% - 60vmax);
-  background: radial-gradient(closest-side, color-mix(in srgb, var(--accent-dark) 16%, transparent), transparent);
-}
-
-.stage-lunares {
-  top: -10%;
-  bottom: -10%;
-  left: -10%;
-  right: -50%;
-  background-image:
-    radial-gradient(circle, var(--lunar) 0 9px, transparent 10px),
-    radial-gradient(circle, var(--lunar) 0 9px, transparent 10px);
-  background-size: 76px 76px;
-  background-position: 0 0, 38px 38px;
-  -webkit-mask-image: radial-gradient(60% 70% at 72% 42%, #000, transparent 78%);
-  mask-image: radial-gradient(60% 70% at 72% 42%, #000, transparent 78%);
-}
-
-/* Виньетка сильна на тёмной сцене и почти исчезает в тоне средних сцен. */
+/* Виньетка по краям тёмного кадра. */
 .stage-vignette {
   inset: 0;
   background: radial-gradient(ellipse at center, transparent 55%, rgba(26, 4, 10, 0.6) 100%);
@@ -1118,20 +1060,14 @@ body:has(.scenes) .site-header {
 }
 
 /* Веер: шарнир SVG — в начале координат якоря (см. fanGeometry.ts:
-   бокс 2060×1110, шарнир в (1030, 1040)). Поворот/масштаб якоря поэтому
-   идут вокруг шарнира, как у веера в руке. Статика = кадр hero: размер —
-   через ширину, в живом режиме ширина фиксирована (1000px), а размер
-   задаёт scale из хореографии. */
+   бокс 2060×1110, шарнир в (1030, 1040)), поэтому поворот идёт вокруг
+   шарнира, как у веера в руке. Положение — transform якоря, полёт —
+   отдельное свойство translate (складывается с transform). */
 .stage-fan {
   --fan-w: calc(min(36svh, 23vw) * 2.06);
   z-index: 1;
   opacity: 0.88;
   transform: translate(74vw, 66svh) rotate(-10deg);
-}
-
-.scenes[data-live] .stage-fan {
-  --fan-w: 1000px;
-  transform: none;
 }
 
 .stage-fan-art {
@@ -1148,10 +1084,6 @@ body:has(.scenes) .site-header {
   --cast-w: 230px;
   z-index: 5;
   transform: translate(87vw, 87svh) rotate(16deg);
-}
-
-.scenes[data-live] .stage-castanets {
-  transform: none;
 }
 
 .stage-castanets-art {
@@ -1175,10 +1107,6 @@ body:has(.scenes) .site-header {
     --cast-w: 184px;
     transform: translate(24vw, 92svh) rotate(-10deg);
   }
-
-  .scenes[data-live] .stage-castanets {
-    --cast-w: 230px;
-  }
 }
 
 @media (max-width: 767px) {
@@ -1191,109 +1119,82 @@ body:has(.scenes) .site-header {
     --cast-w: 140px;
     transform: translate(24vw, 92svh) rotate(-10deg);
   }
-
-  .scenes[data-live] .stage-castanets {
-    --cast-w: 230px;
-  }
 }
 
-/* ---------- Навигация по сценам (десктоп) ---------- */
-.scene-nav {
-  display: none;
+/* Полёт. Возврат (без атрибута) — мягкое торможение на месте; улёт —
+   разгон вверх. Кастаньеты легче веера: стартуют раньше, крутятся сильнее. */
+.stage-fan,
+.stage-castanets,
+.stage-fan-swing,
+.stage-castanets-spin {
+  transition:
+    translate 0.9s cubic-bezier(0.16, 1, 0.3, 1),
+    rotate 0.9s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.6s ease;
 }
 
-@media (min-width: 1200px) and (hover: hover) {
-  .scenes[data-live] .scene-nav {
-    position: absolute;
-    right: 22px;
-    top: 0;
-    bottom: 0;
-    z-index: 6;
-    height: max-content;
-    margin-block: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    padding: 6px;
-    border-radius: 999px;
-  }
+.stage-fan {
+  transition-delay: 0.08s;
 }
 
-.scene-nav-dot {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 999px;
-  color: var(--text-secondary);
-  cursor: pointer;
+.scenes[data-props-away] .stage-fan,
+.scenes[data-props-away] .stage-castanets,
+.scenes[data-props-away] .stage-fan-swing,
+.scenes[data-props-away] .stage-castanets-spin {
+  transition-timing-function: cubic-bezier(0.55, 0, 0.75, 0.2);
+  transition-duration: 0.75s, 0.75s, 0.5s;
 }
 
-.scene-nav-dot:focus-visible {
-  outline: 2px solid var(--primary);
-  outline-offset: 1px;
-}
-
-.scene-nav-mark {
-  width: 6px;
-  height: 6px;
-  border-radius: 999px;
-  background: currentColor;
-  opacity: 0.55;
-  transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.25s ease, background-color 0.25s ease;
-}
-
-.scene-nav-dot:hover .scene-nav-mark {
-  opacity: 0.9;
-}
-
-.scene-nav-dot[aria-current] .scene-nav-mark {
-  background: var(--primary);
-  opacity: 1;
-  transform: scaleY(2.6);
-}
-
-.scene-nav-label {
-  position: absolute;
-  right: calc(100% + 12px);
-  top: 50%;
-  margin-top: -14px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  padding: 0 12px;
-  border-radius: 999px;
-  white-space: nowrap;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  background: color-mix(in srgb, var(--glass-tint) 90%, transparent);
-  border: 1px solid var(--glass-border);
-  /* Без своего backdrop-filter: подпись внутри .scene-nav, который уже
-     размывает подложку и является для неё backdrop root — второе размытие
-     видело бы только саму навигацию. Плотный тон вместо него. */
-  box-shadow: inset 0 1px 0 var(--glass-edge-top), var(--elev-1);
+.scenes[data-props-away] .stage-fan {
+  translate: 0 -130svh;
   opacity: 0;
-  transform: translateX(6px);
-  transition: opacity 0.2s ease, transform 0.25s ease;
-  pointer-events: none;
+  transition-delay: 0.06s, 0.06s, 0.3s;
 }
 
-.scene-nav-dot:hover .scene-nav-label,
-.scene-nav-dot:focus-visible .scene-nav-label {
-  opacity: 1;
-  transform: none;
+.scenes[data-props-away] .stage-fan-swing {
+  rotate: 24deg;
 }
 
-/* Адаптивное стекло шапки (и навигации по сценам) в светлой теме: пока за
-   ними тёмная сцена (--stage-dark → 1, пишет sceneEngine), материал и
+.scenes[data-props-away] .stage-castanets {
+  translate: -6vw -140svh;
+  opacity: 0;
+  transition-delay: 0s, 0s, 0.25s;
+}
+
+.scenes[data-props-away] .stage-castanets-spin {
+  rotate: -140deg;
+}
+
+/* Страницу открыли уже прокрученной — реквизит сразу наверху. */
+.scenes[data-props-instant] :is(.stage-fan, .stage-castanets, .stage-fan-swing, .stage-castanets-spin) {
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stage-fan,
+  .stage-castanets,
+  .stage-fan-swing,
+  .stage-castanets-spin,
+  .scroll-hint {
+    transition: opacity 0.3s ease;
+  }
+
+  .scenes[data-props-away] .stage-fan,
+  .scenes[data-props-away] .stage-castanets,
+  .scenes[data-props-away] .stage-fan-swing,
+  .scenes[data-props-away] .stage-castanets-spin,
+  .scenes[data-props-away] .scroll-hint {
+    translate: none;
+    rotate: none;
+  }
+}
+
+/* Адаптивное стекло шапки в светлой теме: пока за ней тёмный кадр hero
+   (--stage-dark → 1, пишет HomeStory), материал и
    текст непрерывно перетекают к тёмному варианту — иначе светлый текст на
    светлом стекле поверх тёмного кадра был бы нечитаем. В тёмной теме сцена
    и так тёмная. */
-:root:not([data-theme="dark"]) .site-header,
-:root:not([data-theme="dark"]) .scene-nav {
+:root:not([data-theme="dark"]) .site-header {
   /* Кривая круче, чем у самой сцены: средние тона (серый текст на сером
      стекле) нечитаемы, поэтому шапка проходит их быстро. */
   --sdn: clamp(0, var(--stage-dark, 0) * 3 - 1, 1);

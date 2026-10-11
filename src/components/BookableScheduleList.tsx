@@ -124,7 +124,11 @@ function BookableScheduleCard({
             Преподаватель: {slot.teacher_name}
           </div>
         )}
-        <div className="text-sm font-medium text-[var(--primary-text)]">
+        <div className="flex items-center gap-2 text-sm font-medium text-[var(--primary-text)]">
+          <span
+            className={`availability-dot ${full ? "availability-dot--full" : "availability-dot--free"}`}
+            aria-hidden="true"
+          />
           {full ? "Мест нет" : `Свободно ${placesLabel(slot.remaining)}`}
         </div>
         {irreversible && !booked && (

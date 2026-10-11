@@ -1,76 +1,83 @@
 "use client";
 
 import { useEffect, useRef, type ReactNode } from "react";
-import { startSceneEngine, startStaticScenes } from "@/components/home/sceneEngine";
 
-export type SceneLink = { id: string; label: string };
+// Ниже этой прокрутки (px) реквизит всегда на месте.
+const HOME_ZONE = 24;
 
 /**
- * Каркас главной как последовательности полноэкранных сцен.
+ * Каркас главной: обычная страница из секций, фон-сцена (stage) лежит
+ * позади hero.
  *
- *   .scenes            трек прокрутки; в живом режиме его высоту задаёт
- *                      движок (сумма длительностей переходов и удержаний)
- *     .scenes-viewport sticky-"камера" высотой в экран
- *       stage          фон + реквизит (HomeStage, серверный)
- *       .scenes-layer  сцены (children) — слои поверх фона
- *       .scene-nav     точки-сцены (только десктоп, только живой режим)
+ *   .scenes            корень; data-props-away — реквизит улетел
+ *     .scenes-viewport фон + реквизит (HomeStage, серверный)
+ *       .scenes-layer  секции (children) поверх фона
  *
- * Без JS и при prefers-reduced-motion сцены — обычные блоки в потоке
- * страницы (globals.css, .scenes:not([data-live])), всё читается и
- * кликается как раньше. Живой режим включает sceneEngine.
+ * Веер и кастаньеты улетают вверх, как только страницу начали листать
+ * вниз, и возвращаются, когда пользователь листает обратно к hero (пока
+ * hero виден хотя бы наполовину). Само движение — CSS-переходы
+ * (globals.css, [data-props-away]); при prefers-reduced-motion они
+ * отключены, реквизит просто прячется.
+ *
+ * Ещё движок сообщает шапке, тёмный ли кадр под ней (--stage-dark —
+ * адаптивное стекло в светлой теме).
  */
-export function HomeStory({
-  stage,
-  scenes,
-  children,
-}: {
-  stage: ReactNode;
-  scenes: SceneLink[];
-  children: ReactNode;
-}) {
+export function HomeStory({ stage, children }: { stage: ReactNode; children: ReactNode }) {
   const rootRef = useRef<HTMLDivElement | null>(null);
-  const navRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     const root = rootRef.current;
     if (!root) return;
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const start = () =>
-      reduced.matches ? startStaticScenes(root) : startSceneEngine(root, navRef.current);
+    const html = document.documentElement;
+    const hero = root.querySelector<HTMLElement>(".scene--dark");
 
-    let stop = start();
-    const onChange = () => {
-      stop();
-      stop = start();
+    let lastY = window.scrollY;
+    let away = false;
+    const setAway = (next: boolean) => {
+      if (next === away) return;
+      away = next;
+      root.toggleAttribute("data-props-away", next);
     };
-    reduced.addEventListener("change", onChange);
+
+    const update = () => {
+      const y = window.scrollY;
+      const heroH = hero?.offsetHeight ?? window.innerHeight;
+      if (y <= HOME_ZONE) setAway(false);
+      else if (y >= heroH * 0.5) setAway(true);
+      // В зоне hero реагируем на направление: вниз — улетают, вверх — назад.
+      else if (y > lastY) setAway(true);
+      else if (y < lastY) setAway(false);
+      lastY = y;
+
+      const probe = 40;
+      const rect = hero?.getBoundingClientRect();
+      const dark = rect ? rect.top <= probe && rect.bottom > probe : false;
+      html.style.setProperty("--stage-dark", dark ? "1" : "0");
+    };
+
+    // Открыли страницу уже прокрученной (возврат назад, якорь) — реквизит
+    // сразу "в полёте", без анимации на старте.
+    if (window.scrollY > HOME_ZONE) {
+      root.toggleAttribute("data-props-instant", true);
+      setAway(true);
+      requestAnimationFrame(() => root.removeAttribute("data-props-instant"));
+    }
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
     return () => {
-      reduced.removeEventListener("change", onChange);
-      stop();
+      window.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+      root.removeAttribute("data-props-away");
+      html.style.removeProperty("--stage-dark");
     };
   }, []);
 
   return (
     <div ref={rootRef} className="scenes">
-      <div className="scenes-viewport" data-viewport>
+      <div className="scenes-viewport">
         {stage}
         <div className="scenes-layer">{children}</div>
-        <nav ref={navRef} className="scene-nav glass-subtle glass-float" aria-label="Сцены главной">
-          {scenes.map((scene, i) => (
-            <button
-              key={scene.id}
-              type="button"
-              data-scene-nav={i}
-              className="scene-nav-dot"
-              aria-label={scene.label}
-            >
-              <span className="scene-nav-mark" aria-hidden="true" />
-              <span className="scene-nav-label" aria-hidden="true">
-                {scene.label}
-              </span>
-            </button>
-          ))}
-        </nav>
       </div>
     </div>
   );

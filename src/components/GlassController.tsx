@@ -15,8 +15,7 @@ const SPECULAR_SELECTOR = ".glass-specular";
  * Единственный источник "живых" параметров glass-материала и шапки,
  * монтируется один раз в layout:
  *
- * 1. Scroll — тот же GSAP ScrollTrigger, что и у scroll-сцен главной (не
- *    второй scroll-листенер): пишет на <html> --glass-header-density (0..1)
+ * 1. Scroll — GSAP ScrollTrigger: пишет на <html> --glass-header-density (0..1)
  *    — чистую функцию абсолютной scroll-позиции (f(scrollY)), без
  *    play()/reverse() и без состояния, зависящего от истории жеста.
  *    Меняет только плотность стекла шапки; состав и положение её
