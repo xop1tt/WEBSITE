@@ -26,6 +26,7 @@ const ADMIN_LINKS = [
   { href: "/admin/catalog", label: "Каталог", roles: ["admin"] },
   { href: "/admin/settings", label: "Настройки", roles: ["admin"] },
   { href: "/admin/staff", label: "Сотрудники", roles: ["admin"] },
+  { href: "/admin/system", label: "Система", roles: ["admin"] },
 ] as const;
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {

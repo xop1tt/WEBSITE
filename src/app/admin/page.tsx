@@ -84,8 +84,15 @@ export default async function AdminDashboardPage() {
       </section>
 
       <p className="text-sm text-[var(--text-secondary)]">
-        Нагрузку на сервер (запросы, CPU, память, база данных) показывает окно
-        «Нагрузка» в правом нижнем углу на любой странице сайта.{" "}
+        Нагрузку на сервер (запросы, CPU, память, база данных) показывает
+        раздел{" "}
+        <Link
+          href="/admin/system"
+          className="font-medium text-[var(--primary-text)] underline-offset-4 hover:underline"
+        >
+          «Система»
+        </Link>
+        .{" "}
         <Link
           href="/admin/schedule"
           className="font-medium text-[var(--primary-text)] underline-offset-4 hover:underline"

@@ -19,7 +19,7 @@ export type CurrentUser = {
   telegram_id: number | null;
   display_name: string;
   created_at: string;
-  // Только для отображения (ссылка на админку, её разделы, окно нагрузки):
+  // Только для отображения (ссылка на админку и её разделы):
   // права проверяет backend на каждом /api/admin/*.
   is_admin: boolean;
   // Роль сотрудника студии; null — не сотрудник.

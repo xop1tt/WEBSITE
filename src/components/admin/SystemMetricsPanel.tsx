@@ -1,16 +1,15 @@
 "use client";
 
-import Link from "next/link";
-import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 /**
- * Плавающее окно администратора с показателями нагрузки — на любой
- * странице сайта (рендерится только для администраторов, см.
- * AdminLoadWidgetSlot). Данные — GET /api/admin/metrics через rewrite
- * сайта (та же cookie сессии); backend отвечает 403 не-администратору.
+ * Показатели нагрузки — на странице админки «Система» (/admin/system).
+ * Данные — GET /api/admin/metrics через rewrite сайта (та же cookie
+ * сессии); backend отвечает 403 не-администратору.
  *
- * Развёрнутое окно опрашивает backend раз в 5 секунд, свёрнутое — раз в
- * 20 секунд (только индикатор), во фоновой вкладке опрос останавливается.
+ * Опрос — раз в 5 секунд и только пока страница открыта и видна: раньше
+ * плавающее окно опрашивало backend с любой страницы сайта, нагружая
+ * бесплатные Render и Supabase без нужды.
  */
 
 type Metrics = {
@@ -60,41 +59,7 @@ type Metrics = {
 
 type Health = "ok" | "warn" | "bad";
 
-const OPEN_KEY = "admin-load-widget-open";
-
-// Раскрыто ли окно — запоминается в localStorage (между страницами и
-// перезагрузками); если хранилище недоступно (приватный режим) — в памяти.
-const openListeners = new Set<() => void>();
-let openFallback = false;
-
-function readOpen(): boolean {
-  try {
-    return localStorage.getItem(OPEN_KEY) === "1";
-  } catch {
-    return openFallback;
-  }
-}
-
-function writeOpen(value: boolean) {
-  openFallback = value;
-  try {
-    localStorage.setItem(OPEN_KEY, value ? "1" : "0");
-  } catch {
-    // не критично
-  }
-  openListeners.forEach((listener) => listener());
-}
-
-function subscribeOpen(listener: () => void) {
-  openListeners.add(listener);
-  window.addEventListener("storage", listener);
-  return () => {
-    openListeners.delete(listener);
-    window.removeEventListener("storage", listener);
-  };
-}
-const OPEN_INTERVAL_MS = 5_000;
-const COLLAPSED_INTERVAL_MS = 20_000;
+const POLL_INTERVAL_MS = 5_000;
 
 function health(metrics: Metrics | null, failed: boolean): Health {
   if (failed || !metrics) return "bad";
@@ -144,8 +109,7 @@ function ms(value: number | null): string {
   return value === null ? "—" : `${value < 10 ? value.toFixed(1) : Math.round(value)} мс`;
 }
 
-export function AdminLoadWidget() {
-  const open = useSyncExternalStore(subscribeOpen, readOpen, () => false);
+export function SystemMetricsPanel() {
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [failed, setFailed] = useState(false);
   const [history, setHistory] = useState<number[]>([]);
@@ -174,7 +138,7 @@ export function AdminLoadWidget() {
         await load();
       }
       if (!cancelled) {
-        timer = setTimeout(tick, open ? OPEN_INTERVAL_MS : COLLAPSED_INTERVAL_MS);
+        timer = setTimeout(tick, POLL_INTERVAL_MS);
       }
     };
     tick();
@@ -187,21 +151,16 @@ export function AdminLoadWidget() {
       if (timer) clearTimeout(timer);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [open, load]);
-
-  function toggle() {
-    writeOpen(!open);
-  }
+  }, [load]);
 
   const state = health(metrics, failed);
   const color = HEALTH_COLOR[state];
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 flex max-w-[calc(100vw-2rem)] flex-col items-end gap-2 print:hidden">
-      {open && (
+    <div className="flex flex-col gap-2">
         <section
           aria-label="Нагрузка на сервер"
-          className="glass-dense max-h-[70vh] w-[22rem] max-w-full overflow-y-auto rounded-[24px] p-4 text-sm shadow-xl"
+          className="rounded-[24px] glass-medium p-5 text-sm"
         >
           <header className="mb-3 flex items-center justify-between gap-2">
             <span className="flex items-center gap-2 font-heading font-bold">
@@ -218,7 +177,7 @@ export function AdminLoadWidget() {
           </header>
 
           {metrics && (
-            <div className="flex flex-col gap-3">
+            <div className="grid gap-4 md:grid-cols-2">
               <Group title="HTTP-запросы к API">
                 <Row label="За минуту" value={String(metrics.requests.requests_last_minute)} />
                 <Sparkline values={history} color={color} />
@@ -310,42 +269,8 @@ export function AdminLoadWidget() {
             </div>
           )}
 
-          <Link
-            href="/admin"
-            className="mt-3 block text-center text-sm font-medium text-[var(--primary-text)] underline-offset-4 hover:underline"
-          >
-            Открыть админку →
-          </Link>
         </section>
-      )}
 
-      <button
-        type="button"
-        onClick={toggle}
-        aria-expanded={open}
-        className="glass-dense glass-interactive flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold shadow-lg"
-      >
-        <span className="relative inline-flex h-2.5 w-2.5">
-          {state !== "ok" && (
-            <span
-              className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-60"
-              style={{ background: color }}
-            />
-          )}
-          <span className="relative inline-flex h-2.5 w-2.5 rounded-full" style={{ background: color }} />
-        </span>
-        {metrics && !failed ? (
-          <span>
-            {metrics.requests.requests_last_minute} зап/мин
-            {metrics.process.cpu_percent !== null ? ` · CPU ${Math.round(metrics.process.cpu_percent)}%` : ""}
-          </span>
-        ) : (
-          <span>{failed ? "API недоступен" : "Нагрузка"}</span>
-        )}
-        <span aria-hidden="true" className="text-[var(--text-secondary)]">
-          {open ? "▾" : "▴"}
-        </span>
-      </button>
     </div>
   );
 }
