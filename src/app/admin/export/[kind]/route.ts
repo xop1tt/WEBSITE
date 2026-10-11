@@ -41,6 +41,8 @@ export async function GET(
   return new Response(response.body, {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
+      // Персональные данные участников: ни CDN, ни браузер не кешируют.
+      "Cache-Control": "private, no-store",
       "Content-Disposition":
         response.headers.get("Content-Disposition") ?? `attachment; filename="${kind}.csv"`,
     },

@@ -23,6 +23,10 @@ services:
     image: flamenco-studio-frontend:local
     init: true
     restart: unless-stopped
+    # Потолок памяти и процессов: утечка или атака на один сервис не
+    # забирает весь сервер.
+    mem_limit: 512m
+    pids_limit: 256
     environment:
       API_BASE_URL: http://api:8000
       # Тот же пояс, что у backend (STUDIO_TIMEZONE в его .env).
@@ -69,8 +73,10 @@ services:
   # сервис с портами наружу. Домен и email для Let's Encrypt — из .env
   # рядом с этим файлом (SITE_DOMAIN, ACME_EMAIL, см. .env.example).
   caddy:
-    image: caddy:2.10-alpine
+    image: caddy:2.10-alpine@sha256:4c6e91c6ed0e2fa03efd5b44747b625fec79bc9cd06ac5235a779726618e530d
     restart: unless-stopped
+    mem_limit: 128m
+    pids_limit: 256
     depends_on:
       - frontend
     environment:
