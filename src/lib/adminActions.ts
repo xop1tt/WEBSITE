@@ -478,3 +478,123 @@ export async function deleteNoteAction(formData: FormData): Promise<void> {
   if (!result.ok) back(path, { error: result.message });
   back(path, { notice: "Заметка удалена" });
 }
+
+// ---------- техническое обслуживание сайта ----------
+
+const MAINTENANCE_PATH = "/admin/maintenance";
+
+/** Дата и время из полей формы (время студии) → ISO со смещением; пусто — null. */
+function studioDateTime(formData: FormData, prefix: string): string | null | "invalid" {
+  const date = String(formData.get(`${prefix}_date`) ?? "").trim();
+  const time = String(formData.get(`${prefix}_time`) ?? "").trim();
+  if (!date && !time) return null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(time)) return "invalid";
+  return `${date}T${time}:00${studioOffset(date, time)}`;
+}
+
+/** Моменты предупреждений: отмеченные варианты и свои значения (минуты). */
+function warningMinutes(formData: FormData): number[] | "invalid" {
+  if (formData.get("warnings_enabled") !== "on") return [];
+  const values = formData.getAll("warning").map((value) => Number(value));
+  const custom = String(formData.get("warning_custom") ?? "").trim();
+  if (custom) {
+    for (const part of custom.split(/[\s,;]+/).filter(Boolean)) {
+      values.push(Number(part));
+    }
+  }
+  if (values.some((value) => !Number.isInteger(value) || value <= 0)) return "invalid";
+  return [...new Set(values)].sort((a, b) => b - a);
+}
+
+type MaintenanceForm = {
+  title: string;
+  description: string;
+  starts_at: string | null;
+  ends_at: string | null;
+  warning_minutes: number[];
+  notify_users: boolean;
+  audience: "all" | "staff";
+};
+
+function maintenanceForm(formData: FormData): MaintenanceForm {
+  const startsAt = studioDateTime(formData, "starts");
+  const endsAt = studioDateTime(formData, "ends");
+  const minutes = warningMinutes(formData);
+  if (startsAt === "invalid" || endsAt === "invalid") {
+    back(MAINTENANCE_PATH, { error: "Укажите дату и время полностью" });
+  }
+  if (minutes === "invalid") {
+    back(MAINTENANCE_PATH, { error: "Моменты предупреждений — целое число минут" });
+  }
+  return {
+    title: String(formData.get("title") ?? "").trim(),
+    description: String(formData.get("description") ?? "").trim(),
+    starts_at: startsAt,
+    ends_at: endsAt,
+    warning_minutes: minutes,
+    notify_users: formData.get("notify_users") === "on",
+    audience: formData.get("audience") === "staff" ? "staff" : "all",
+  };
+}
+
+export async function createMaintenanceAction(formData: FormData): Promise<void> {
+  const mode = String(formData.get("mode") ?? "schedule");
+  const form = maintenanceForm(formData);
+  const draft = { ...form, start_now: mode === "start_now" };
+  if (!draft.start_now && !draft.starts_at) {
+    back(MAINTENANCE_PATH, { error: "Укажите дату и время начала" });
+  }
+  if (mode === "preview") {
+    const result = await adminRequest("POST", "/api/admin/maintenance/preview", draft);
+    if (!result.ok) back(MAINTENANCE_PATH, { error: result.message });
+    // Черновик — в адресе: страница покажет тексты и расписание, ничего не
+    // сохраняя и не отправляя.
+    back(MAINTENANCE_PATH, {
+      preview: Buffer.from(JSON.stringify(draft)).toString("base64url"),
+    });
+  }
+  const result = await adminRequest("POST", "/api/admin/maintenance", draft);
+  if (!result.ok) back(MAINTENANCE_PATH, { error: result.message });
+  back(MAINTENANCE_PATH, {
+    notice: draft.start_now
+      ? "Обслуживание включено: сайт показывает страницу технических работ"
+      : "Обслуживание запланировано",
+  });
+}
+
+export async function updateMaintenanceAction(formData: FormData): Promise<void> {
+  const id = Number(formData.get("id"));
+  const phase = String(formData.get("phase") ?? "scheduled");
+  const form = maintenanceForm(formData);
+  const changed = (prefix: "starts" | "ends") =>
+    `${formData.get(`${prefix}_date`) ?? ""} ${formData.get(`${prefix}_time`) ?? ""}`.trim() !==
+    String(formData.get(`orig_${prefix}`) ?? "").trim();
+  // Время — только изменённое; во время работ — тексты и окончание.
+  const body: Partial<MaintenanceForm> =
+    phase === "active"
+      ? { title: form.title, description: form.description }
+      : { ...form };
+  if (!changed("starts") || phase === "active") delete body.starts_at;
+  if (changed("ends")) body.ends_at = form.ends_at;
+  else delete body.ends_at;
+  const result = await adminRequest("PATCH", `/api/admin/maintenance/${id}`, body);
+  if (!result.ok) back(MAINTENANCE_PATH, { error: result.message });
+  back(MAINTENANCE_PATH, { notice: "Изменения сохранены" });
+}
+
+const MAINTENANCE_TRANSITIONS: Record<string, string> = {
+  start: "Обслуживание включено: сайт показывает страницу технических работ",
+  complete: "Работы завершены: сайт снова работает, участники получат уведомление",
+  cancel: "Обслуживание отменено",
+};
+
+export async function maintenanceTransitionAction(formData: FormData): Promise<void> {
+  const id = Number(formData.get("id"));
+  const action = String(formData.get("action") ?? "");
+  if (!Number.isInteger(id) || id <= 0 || !(action in MAINTENANCE_TRANSITIONS)) {
+    back(MAINTENANCE_PATH, { error: "Некорректное действие" });
+  }
+  const result = await adminRequest("POST", `/api/admin/maintenance/${id}/${action}`);
+  if (!result.ok) back(MAINTENANCE_PATH, { error: result.message });
+  back(MAINTENANCE_PATH, { notice: MAINTENANCE_TRANSITIONS[action] });
+}

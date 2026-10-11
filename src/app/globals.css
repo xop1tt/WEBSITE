@@ -1336,3 +1336,39 @@ body:has(.scenes) .site-header {
 .stage-dark {
   color: var(--text-primary);
 }
+
+/* ==========================================================================
+   Страница технического обслуживания (/maintenance). Шапку и подвал сайта
+   на ней не показываем: их ссылки во время работ всё равно вели бы сюда же.
+   Индикатор работ — спокойная точка в цвете акцента, мягко «дышит»; без
+   анимации, если пользователь просит меньше движения.
+   ========================================================================== */
+body:has(.maintenance-screen) .site-header,
+body:has(.maintenance-screen) .footer-surface {
+  display: none;
+}
+
+.maintenance-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--primary);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--primary) 45%, transparent);
+  animation: maintenance-breathe 2.4s ease-in-out infinite;
+}
+
+@keyframes maintenance-breathe {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--primary) 40%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--primary) 0%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .maintenance-dot {
+    animation: none;
+  }
+}

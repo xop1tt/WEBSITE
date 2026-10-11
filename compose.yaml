@@ -29,6 +29,9 @@ services:
       STUDIO_TIMEZONE: ${STUDIO_TIMEZONE:-Europe/Moscow}
       PORT: "3000"
       HOSTNAME: "0.0.0.0"
+      # Страницу технических работ proxy запрашивает у самого Next.js
+      # (ответ 503 с её HTML) — напрямую, не через внешний домен и Caddy.
+      SITE_INTERNAL_ORIGIN: http://127.0.0.1:3000
     # Сервер Next.js отвечает на страницу без данных API (/contact) — сайт
     # жив даже при недоступном backend (он показывает «сервис недоступен»).
     healthcheck:

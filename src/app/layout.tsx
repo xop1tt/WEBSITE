@@ -1,8 +1,12 @@
 import type { Metadata } from "next";
 import { Comfortaa } from "next/font/google";
+import { headers } from "next/headers";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { GlassController } from "@/components/GlassController";
+import { MaintenanceNotice } from "@/components/MaintenanceNotice";
+import { formatClassDateTime } from "@/lib/format";
+import { NOTICE_REQUEST_HEADER, parseNotice } from "@/lib/maintenance";
 import "./globals.css";
 
 // Geist/Geist Mono были в стартовом шаблоне Next.js, но сайт нигде не
@@ -40,7 +44,28 @@ const THEME_INIT_SCRIPT = `
 })();
 `;
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+// Предупреждение о запланированных техработах: время передаёт proxy
+// (src/proxy.ts) заголовком запроса — layout не ходит в backend сам.
+async function maintenanceNotice() {
+  const notice = parseNotice((await headers()).get(NOTICE_REQUEST_HEADER), Date.now());
+  if (!notice) return null;
+  const start = formatClassDateTime(notice.starts_at);
+  let until = "";
+  if (notice.ends_at) {
+    // Тот же день — только время окончания; через полночь — с датой.
+    const end = formatClassDateTime(notice.ends_at);
+    until = ` до ${end.split(" · ")[0] === start.split(" · ")[0] ? end.split(" · ")[1] : end}`;
+  }
+  return (
+    <MaintenanceNotice
+      dismissKey={notice.starts_at}
+      text={`Плановые технические работы: ${start}${until} (время студии). В это время сайт будет недоступен, Telegram-бот работает как обычно.`}
+    />
+  );
+}
+
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const notice = await maintenanceNotice();
   return (
     <html
       lang="ru"
@@ -56,6 +81,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <SiteHeader />
         <main className="flex-1">{children}</main>
         <SiteFooter />
+        {notice}
       </body>
     </html>
   );

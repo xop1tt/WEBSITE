@@ -351,3 +351,96 @@ export const getFailedNotifications = (beforeId?: number) =>
   }>(`/api/admin/notifications/failed${query({ before_id: beforeId })}`);
 export const getAdminReport = (params: { from?: string; to?: string; sleeping_days?: number }) =>
   adminGet<AdminReport>(`/api/admin/reports${query(params)}`);
+
+// ---------- техническое обслуживание сайта ----------
+
+export type MaintenanceStatusName = "scheduled" | "active" | "completed" | "cancelled";
+
+export type MaintenanceWindow = {
+  id: number;
+  status: MaintenanceStatusName;
+  effective_status: MaintenanceStatusName;
+  title: string;
+  description: string;
+  starts_at: string;
+  ends_at: string | null;
+  warning_minutes: number[];
+  notify_users: boolean;
+  audience: "all" | "staff";
+  revision: number;
+  started_at: string | null;
+  finished_at: string | null;
+  created_at: string;
+};
+
+export type MaintenanceWarningPlan = {
+  minutes: number;
+  due_at: string;
+  state: "wait" | "send" | "late";
+  recipients: number | null;
+  skipped_reason: string | null;
+};
+
+export type MaintenanceDetail = {
+  window: MaintenanceWindow;
+  warnings: MaintenanceWarningPlan[];
+  events: {
+    id: number;
+    event: string;
+    actor_name: string | null;
+    actor_telegram_id: number | null;
+    details: Record<string, unknown>;
+    created_at: string;
+  }[];
+  delivery: { kind: string; sent: number; failed: number; skipped: number; pending: number }[];
+};
+
+export type MaintenanceOverview = {
+  current: MaintenanceDetail | null;
+  history: MaintenanceWindow[];
+  default_title: string;
+  default_description: string;
+  default_warning_minutes: number[];
+  audience_all: number;
+  audience_staff: number;
+  server_time: string;
+};
+
+export type MaintenanceDraft = {
+  title: string;
+  description: string;
+  starts_at: string | null;
+  ends_at: string | null;
+  warning_minutes: number[];
+  notify_users: boolean;
+  audience: "all" | "staff";
+  start_now?: boolean;
+};
+
+export type MaintenancePreview = {
+  messages: { kind: string; text: string }[];
+  warnings: MaintenanceWarningPlan[];
+  recipients: number;
+};
+
+export const getMaintenanceOverview = () =>
+  adminGet<MaintenanceOverview>("/api/admin/maintenance");
+
+/** Тестовый режим: тексты и расписание черновика — без записи и отправки. */
+export async function getMaintenancePreview(
+  draft: MaintenanceDraft,
+): Promise<ApiResult<MaintenancePreview>> {
+  const session = (await cookies()).get(SESSION_COOKIE_NAME);
+  if (!session) {
+    return { ok: false, error: "unauthorized", status: null };
+  }
+  return requestJson<MaintenancePreview>(`${API_BASE_URL}/api/admin/maintenance/preview`, {
+    method: "POST",
+    headers: {
+      cookie: `${SESSION_COOKIE_NAME}=${session.value}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(draft),
+    cache: "no-store",
+  });
+}
