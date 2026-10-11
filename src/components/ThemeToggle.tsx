@@ -56,9 +56,14 @@ export function ThemeToggle() {
     getServerResolvedTheme,
   );
 
-  // Пока пользователь ещё не кликал (preference === "system"), следим за
-  // изменением настройки ОС и сразу применяем её к <html>.
+  // После гидратации тема применяется ещё раз. data-theme выставляет
+  // no-flash скрипт, но если React перерисует документ с нуля (ошибка
+  // гидратации — например, из-за чужого скрипта, который Netlify дописывает
+  // в страницу), атрибут на <html> стирается и сайт остаётся светлым даже
+  // при тёмной теме устройства. Пока пользователь ещё не кликал
+  // (preference === "system"), следим и за изменением настройки ОС.
   useEffect(() => {
+    applyTheme(preference);
     if (preference !== "system") return;
     const media = window.matchMedia("(prefers-color-scheme: dark)");
     const onChange = () => applyTheme("system");

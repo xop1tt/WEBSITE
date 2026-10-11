@@ -26,11 +26,9 @@ const opacityOf = (el: HTMLElement, fallback: number) =>
  *   плавный, лаг ощущался бы как резина.
  * - Скорость прокрутки слегка раскачивает реквизит (кастаньеты крутятся,
  *   веер отстаёт) и затухает к нулю, когда скролл стоит.
- * - Переход с веером нельзя "проскочить насквозь": он занимает свой
- *   диапазон прокрутки, а следующая сцена существует только под ним. Если
- *   пользователь остановился, когда веер закрывает экран, переход мягко
- *   доводится в сторону последнего движения (нативный smooth scroll,
- *   любое касание/колесо его прерывает).
+ * - Переход с веером занимает свой короткий диапазон прокрутки, а
+ *   следующая сцена существует только под ним. Прокрутку движок не
+ *   доводит сам — где пользователь остановился, там кадр и стоит.
  *
  * Возвращает функцию очистки, полностью возвращающую DOM к статике.
  */
@@ -204,36 +202,10 @@ export function startSceneEngine(root: HTMLElement, nav: HTMLElement | null): ()
     if (!raf) raf = requestAnimationFrame(tick);
   };
 
-  // ---------- Довершение перехода с веером ----------
-  let idleTimer = 0;
-  let lastScrollY = window.scrollY;
-  let direction = 1;
-  let touching = false;
-
-  function settleFan() {
-    if (!plan || touching) return;
-    const t = (window.scrollY - trackTop) / vhPx;
-    const { start, end, snapFrom, snapTo } = plan.fan;
-    if (t <= snapFrom || t >= snapTo) return;
-    const dest = direction > 0 ? end : start;
-    window.scrollTo({ top: trackTop + dest * vhPx, behavior: "smooth" });
-  }
-
   // ---------- События ----------
   const onScroll = () => {
-    const y = window.scrollY;
-    if (y !== lastScrollY) direction = y > lastScrollY ? 1 : -1;
-    lastScrollY = y;
-    target = y;
+    target = window.scrollY;
     kick();
-    window.clearTimeout(idleTimer);
-    idleTimer = window.setTimeout(settleFan, 200);
-  };
-  const onTouchStart = () => {
-    touching = true;
-  };
-  const onTouchEnd = () => {
-    touching = false;
   };
 
   const scrollToScene = (index: number, behavior: ScrollBehavior) => {
@@ -318,9 +290,6 @@ export function startSceneEngine(root: HTMLElement, nav: HTMLElement | null): ()
   window.addEventListener("scroll", onScroll, { passive: true });
   window.addEventListener("resize", onResize);
   window.addEventListener("hashchange", onHash);
-  window.addEventListener("touchstart", onTouchStart, { passive: true });
-  window.addEventListener("touchend", onTouchEnd, { passive: true });
-  window.addEventListener("touchcancel", onTouchEnd, { passive: true });
   root.addEventListener("focusin", onFocusIn);
   nav?.addEventListener("click", onNavClick);
 
@@ -328,13 +297,9 @@ export function startSceneEngine(root: HTMLElement, nav: HTMLElement | null): ()
     window.removeEventListener("scroll", onScroll);
     window.removeEventListener("resize", onResize);
     window.removeEventListener("hashchange", onHash);
-    window.removeEventListener("touchstart", onTouchStart);
-    window.removeEventListener("touchend", onTouchEnd);
-    window.removeEventListener("touchcancel", onTouchEnd);
     root.removeEventListener("focusin", onFocusIn);
     nav?.removeEventListener("click", onNavClick);
     resizeObserver.disconnect();
-    window.clearTimeout(idleTimer);
     window.clearTimeout(resizeTimer);
     if (raf) cancelAnimationFrame(raf);
 

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { NAV_ITEM_CLASS } from "@/lib/glass";
+import { LinkPendingHint } from "./LinkPendingHint";
 
 // Блик под курсором ведёт общий GlassController — своих обработчиков нет.
 
@@ -36,6 +37,7 @@ export function NavLink({
       }`}
     >
       {children}
+      <LinkPendingHint />
     </Link>
   );
 }

@@ -2,10 +2,9 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { getBookingRules, getSchedule, isBookable } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth";
-import { getMyBookedSlotIds } from "@/lib/account";
+import { getMyBookedSlotIds, getMyWaitlistedSlotIds } from "@/lib/account";
 import { ServiceUnavailableNotice } from "@/components/ServiceUnavailableNotice";
 import { getDirections } from "@/lib/directions";
-import { CONTACTS } from "@/lib/contacts";
 import { formatClassDateTime } from "@/lib/format";
 import { GLASS_BUTTON_CLASS, PRIMARY_BUTTON_CLASS } from "@/lib/glass";
 import { BookableScheduleList } from "@/components/BookableScheduleList";
@@ -42,7 +41,6 @@ const SCENES: SceneLink[] = [
   { id: "directions", label: "Направления" },
   { id: "about", label: "О студии" },
   { id: "schedule", label: "Записаться" },
-  { id: "contacts", label: "Контакты" },
 ];
 
 // Главная — последовательность полноэкранных сцен (HomeStory): камера
@@ -60,9 +58,9 @@ export default async function HomePage() {
   ]);
   // Как в разделе «Записаться» бота: только занятия, на которые можно
   // записаться.
-  const bookedSlotIds = currentUser?.telegram_id
-    ? await getMyBookedSlotIds()
-    : undefined;
+  const [bookedSlotIds, waitlistedSlotIds] = currentUser?.telegram_id
+    ? await Promise.all([getMyBookedSlotIds(), getMyWaitlistedSlotIds()])
+    : [undefined, undefined];
   const allSlots = scheduleResult.ok ? scheduleResult.data : [];
   const schedule = allSlots.filter(isBookable);
   const upcoming = schedule.slice(0, 4);
@@ -209,6 +207,8 @@ export default async function HomePage() {
                 classKey={null}
                 cancellationDeadlineHours={rules.cancellation_deadline_hours}
                 bookedSlotIds={bookedSlotIds}
+                hasTelegram={currentUser?.telegram_id != null}
+                waitlistedSlotIds={waitlistedSlotIds}
               />
             ) : (
               <ServiceUnavailableNotice />
@@ -224,44 +224,6 @@ export default async function HomePage() {
         </div>
       </Scene>
 
-      {/* Финал: снова тёмная сцена — веер поднимается на своё место из
-          hero, кастаньеты ложатся рядом (см. choreography.ts). */}
-      <Scene id="contacts" dark labelledBy="contacts-title">
-        <div className="mx-auto w-full max-w-6xl px-5 sm:px-6">
-          <div className="stage-copy flex max-w-xl flex-col items-start gap-5">
-            <div data-layer data-depth="0.8" data-blur className="flex flex-col items-start gap-3">
-              <span className="eyebrow">Готовы начать?</span>
-              <h2 id="contacts-title" className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">
-                Контакты
-              </h2>
-              <p className="max-w-md text-[var(--text-secondary)]">
-                Свяжитесь со студией любым удобным способом — поможем
-                выбрать направление и время занятия.
-              </p>
-            </div>
-            <div
-              data-layer
-              data-depth="1.1"
-              className="glass-medium glass-float w-full rounded-[28px] p-6 [text-shadow:none] sm:p-7"
-            >
-              <dl className="flex flex-col gap-3 text-left">
-                <ContactRow label="Адрес" value={CONTACTS.address} />
-                <ContactRow label="Телефон" value={CONTACTS.phone} />
-              </dl>
-              {TELEGRAM_BOT_USERNAME && (
-                <a
-                  href={`https://t.me/${TELEGRAM_BOT_USERNAME}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={`${PRIMARY_BUTTON_CLASS} mt-5 w-fit gap-2 px-6 py-3 text-base`}
-                >
-                  Написать в Telegram
-                </a>
-              )}
-            </div>
-          </div>
-        </div>
-      </Scene>
     </HomeStory>
   );
 }
@@ -328,15 +290,6 @@ function WhyUsIcon({ variant }: { variant: "group" | "levels" | "calendar" }) {
           </>
         )}
       </svg>
-    </div>
-  );
-}
-
-function ContactRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex flex-col gap-1 sm:flex-row sm:gap-3">
-      <dt className="w-24 shrink-0 font-medium">{label}</dt>
-      <dd className="text-[var(--text-secondary)]">{value}</dd>
     </div>
   );
 }

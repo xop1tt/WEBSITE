@@ -24,7 +24,7 @@ import {
 } from "@/lib/adminActions";
 import { getPackages } from "@/lib/api";
 import { isServiceFailure } from "@/lib/apiResult";
-import { lessonsCount } from "@/lib/format";
+import { lessonsCount, formatPhone } from "@/lib/format";
 import { GLASS_BUTTON_CLASS, INPUT_CLASS, PRIMARY_BUTTON_CLASS } from "@/lib/glass";
 import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
 import { ServiceUnavailableNotice } from "@/components/ServiceUnavailableNotice";
@@ -360,7 +360,7 @@ function Header({ client }: { client: AdminClientCard }) {
       </div>
       <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
         <div>Telegram ID: {profile.telegram_id}</div>
-        <div>Телефон: {profile.phone ?? "не указан"}</div>
+        <div>Телефон: {profile.phone ? formatPhone(profile.phone) : "не указан"}</div>
         <div>Сайт: {client.email ?? (client.has_web_account ? "вход через Telegram" : "нет аккаунта")}</div>
         <div>В студии с {formatAdminDateTime(profile.registered_at)}</div>
       </dl>

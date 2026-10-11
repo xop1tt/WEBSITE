@@ -43,22 +43,6 @@ export default function ContactPage() {
         </dl>
         <StudioMap coords={CONTACTS.coords} address={CONTACTS.address} />
       </div>
-
-      {/* Плейсхолдер: имя преподавателя, фото зала и отзывы — реальный контент
-          студии, его нельзя выдумывать. Заполнить перед запуском. */}
-      <div className="rounded-[28px] glass-medium p-7">
-        <h2 className="font-heading mb-2 text-xl font-bold tracking-tight">
-          Как проходит первое занятие
-        </h2>
-        <p className="text-base leading-relaxed text-[var(--text-secondary)]">
-          Приходите за 10–15 минут до начала — познакомимся, расскажем, как
-          проходит занятие, поможем с первыми движениями. Никакой специальной
-          подготовки не нужно.
-        </p>
-        <p className="mt-3 text-sm text-[var(--text-secondary)]">
-          Преподаватель и фото зала — уточняются.
-        </p>
-      </div>
     </div>
   );
 }

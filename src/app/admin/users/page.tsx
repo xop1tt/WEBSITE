@@ -3,7 +3,7 @@ import Link from "next/link";
 import { getAdminUsers } from "@/lib/admin";
 import { isServiceFailure } from "@/lib/apiResult";
 import { GLASS_BUTTON_CLASS, INPUT_CLASS } from "@/lib/glass";
-import { lessonsCount } from "@/lib/format";
+import { lessonsCount, formatPhone } from "@/lib/format";
 import { ServiceUnavailableNotice } from "@/components/ServiceUnavailableNotice";
 import { Badge, EmptyState, formatAdminDateTime } from "@/components/admin/AdminUi";
 
@@ -87,7 +87,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: S
                   <td className="px-4 py-3 text-[var(--text-secondary)]">
                     {account.telegram_id ?? <Badge>не привязан</Badge>}
                   </td>
-                  <td className="px-4 py-3 text-[var(--text-secondary)]">{account.phone ?? "—"}</td>
+                  <td className="px-4 py-3 text-[var(--text-secondary)]">{formatPhone(account.phone)}</td>
                   <td className="px-4 py-3">
                     {account.telegram_id ? lessonsCount(account.lesson_credits) : "—"}
                   </td>

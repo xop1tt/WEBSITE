@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { getAdminReport, type AdminReport } from "@/lib/admin";
 import { isServiceFailure } from "@/lib/apiResult";
-import { STUDIO_TIMEZONE, lessonsCount } from "@/lib/format";
+import { STUDIO_TIMEZONE, lessonsCount, formatPhone } from "@/lib/format";
 import { GLASS_BUTTON_CLASS, INPUT_CLASS } from "@/lib/glass";
 import { ServiceUnavailableNotice } from "@/components/ServiceUnavailableNotice";
 import { EmptyState, StatCard, formatAdminDateTime, formatRub } from "@/components/admin/AdminUi";
@@ -123,7 +123,7 @@ export default async function AdminReportsPage({ searchParams }: { searchParams:
                 <span className="text-[var(--text-secondary)]">
                   последняя запись: {client.last_booking_at ? formatAdminDateTime(client.last_booking_at) : "не было"}
                 </span>
-                {client.phone && <span className="text-[var(--text-secondary)]">{client.phone}</span>}
+                {client.phone && <span className="text-[var(--text-secondary)]">{formatPhone(client.phone)}</span>}
               </li>
             ))}
           </ul>

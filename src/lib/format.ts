@@ -80,3 +80,96 @@ export function hoursLabel(count: number): string {
 export function formatPrice(rubles: number): string {
   return `${String(Math.round(rubles)).replace(/\B(?=(\d{3})+(?!\d))/g, "\u00a0")}\u00a0₽`;
 }
+
+/**
+ * Телефон для показа: в профиле он хранится как ввели («37443136288»,
+ * «89001234567»). Российский номер — «+7 (900) 123-45-67», остальные — с
+ * «+» впереди; то, что на номер не похоже, — как есть.
+ */
+export function formatPhone(raw: string | null | undefined): string {
+  if (!raw) return "—";
+  const digits = raw.replace(/\D/g, "");
+  if (digits.length < 7 || digits.length > 15) return raw;
+  if (digits.length === 11 && (digits[0] === "7" || digits[0] === "8")) {
+    const d = digits.slice(1);
+    return `+7 (${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6, 8)}-${d.slice(8)}`;
+  }
+  if (digits.length === 10 && digits[0] === "9") {
+    return formatPhone(`7${digits}`);
+  }
+  return `+${digits}`;
+}
+
+// ---------- Группировка занятий по неделям и дням (пояс студии) ----------
+
+const DAY_MS = 86_400_000;
+const MONTHS_GENITIVE = [
+  "января", "февраля", "марта", "апреля", "мая", "июня",
+  "июля", "августа", "сентября", "октября", "ноября", "декабря",
+];
+const WEEKDAYS_FULL = [
+  "Воскресенье", "Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота",
+];
+
+/** Календарная дата момента в поясе студии: «2026-10-12». */
+export function studioDate(isoString: string): string {
+  const parts = zonedParts(new Date(isoString));
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
+function ymdToUtc(ymd: string): Date {
+  return new Date(`${ymd}T00:00:00Z`);
+}
+
+function utcToYmd(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+/** Понедельник недели, в которую попадает дата. */
+export function weekStartOf(ymd: string): string {
+  const date = ymdToUtc(ymd);
+  const shift = (date.getUTCDay() + 6) % 7; // Пн → 0 … Вс → 6
+  return utcToYmd(new Date(date.getTime() - shift * DAY_MS));
+}
+
+/** «12–18 октября», а через границу месяца — «26 октября – 1 ноября». */
+export function formatWeekRange(mondayYmd: string): string {
+  const start = ymdToUtc(mondayYmd);
+  const end = new Date(start.getTime() + 6 * DAY_MS);
+  const startMonth = MONTHS_GENITIVE[start.getUTCMonth()];
+  const endMonth = MONTHS_GENITIVE[end.getUTCMonth()];
+  return startMonth === endMonth
+    ? `${start.getUTCDate()}–${end.getUTCDate()} ${endMonth}`
+    : `${start.getUTCDate()} ${startMonth} – ${end.getUTCDate()} ${endMonth}`;
+}
+
+/** «Понедельник, 12 октября». */
+export function formatStudioDay(ymd: string): string {
+  const date = ymdToUtc(ymd);
+  return `${WEEKDAYS_FULL[date.getUTCDay()]}, ${date.getUTCDate()} ${MONTHS_GENITIVE[date.getUTCMonth()]}`;
+}
+
+export type DayGroup<T> = { day: string; items: T[] };
+export type WeekGroup<T> = { week: string; days: DayGroup<T>[]; count: number };
+
+/** Занятия (уже по возрастанию времени) → недели → дни, по времени студии. */
+export function groupByWeekAndDay<T extends { starts_at: string }>(items: T[]): WeekGroup<T>[] {
+  const weeks: WeekGroup<T>[] = [];
+  for (const item of items) {
+    const day = studioDate(item.starts_at);
+    const week = weekStartOf(day);
+    let weekGroup = weeks[weeks.length - 1];
+    if (!weekGroup || weekGroup.week !== week) {
+      weekGroup = { week, days: [], count: 0 };
+      weeks.push(weekGroup);
+    }
+    let dayGroup = weekGroup.days[weekGroup.days.length - 1];
+    if (!dayGroup || dayGroup.day !== day) {
+      dayGroup = { day, items: [] };
+      weekGroup.days.push(dayGroup);
+    }
+    dayGroup.items.push(item);
+    weekGroup.count += 1;
+  }
+  return weeks;
+}

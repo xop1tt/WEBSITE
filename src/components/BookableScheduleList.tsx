@@ -19,6 +19,8 @@ type Props = {
   hasTelegram?: boolean;
   // Занятия, в листе ожидания которых стоит пользователь.
   waitlistedSlotIds?: ReadonlySet<number>;
+  // Список уже под заголовком дня — в карточке только время.
+  timeOnly?: boolean;
 };
 
 const NO_BOOKINGS: ReadonlySet<number> = new Set();
@@ -33,6 +35,7 @@ export function BookableScheduleList({
   bookedSlotIds = NO_BOOKINGS,
   hasTelegram = false,
   waitlistedSlotIds = NO_BOOKINGS,
+  timeOnly = false,
 }: Props) {
   const bookable = slots.filter((slot) => slot.status === "open");
   if (bookable.length === 0) {
@@ -53,6 +56,7 @@ export function BookableScheduleList({
           booked={bookedSlotIds.has(slot.id)}
           hasTelegram={hasTelegram}
           waitlisted={waitlistedSlotIds.has(slot.id)}
+          timeOnly={timeOnly}
         />
       ))}
     </ul>
@@ -74,6 +78,7 @@ function BookableScheduleCard({
   booked,
   hasTelegram,
   waitlisted,
+  timeOnly,
 }: {
   slot: ClassSlot;
   isAuthenticated: boolean;
@@ -83,6 +88,7 @@ function BookableScheduleCard({
   booked: boolean;
   hasTelegram: boolean;
   waitlisted: boolean;
+  timeOnly: boolean;
 }) {
   const full = !isBookable(slot);
   return (
@@ -91,7 +97,9 @@ function BookableScheduleCard({
         <div className="flex flex-wrap items-baseline gap-2">
           <span className="font-medium">{slot.class_label}</span>
           <span className="text-sm text-[var(--text-secondary)]">
-            {formatClassDateTime(slot.starts_at)}
+            {timeOnly
+              ? formatClassDateTime(slot.starts_at).split(" · ").at(-1)
+              : formatClassDateTime(slot.starts_at)}
           </span>
         </div>
         {slot.teacher_name && (

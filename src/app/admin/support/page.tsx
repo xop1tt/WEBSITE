@@ -2,9 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { getAdminTickets } from "@/lib/admin";
 import { isServiceFailure } from "@/lib/apiResult";
-import { GLASS_BUTTON_CLASS } from "@/lib/glass";
 import { ServiceUnavailableNotice } from "@/components/ServiceUnavailableNotice";
-import { EmptyState, Notices, formatAdminDateTime } from "@/components/admin/AdminUi";
+import { EmptyState, Notices, SubTabs, formatAdminDateTime } from "@/components/admin/AdminUi";
 
 export const metadata: Metadata = {
   title: "Поддержка",
@@ -20,20 +19,12 @@ export default async function AdminSupportPage({ searchParams }: { searchParams:
   return (
     <div className="flex flex-col gap-4">
       <Notices notice={notice} error={error} />
-      <div className="flex gap-2">
-        {(["open", "closed"] as const).map((item) => (
-          <Link
-            key={item}
-            href={item === "open" ? "/admin/support" : "/admin/support?status=closed"}
-            aria-current={status === item ? "page" : undefined}
-            className={`${GLASS_BUTTON_CLASS} px-4 py-1.5 text-sm ${
-              status === item ? "text-[var(--primary-text)]" : "text-[var(--text-secondary)]"
-            }`}
-          >
-            {item === "open" ? "Открытые" : "Закрытые"}
-          </Link>
-        ))}
-      </div>
+      <SubTabs
+        tabs={[
+          { href: "/admin/support", label: "Открытые", active: status === "open" },
+          { href: "/admin/support?status=closed", label: "Закрытые", active: status === "closed" },
+        ]}
+      />
 
       {!result.ok ? (
         isServiceFailure(result) ? (

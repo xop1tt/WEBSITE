@@ -4,9 +4,11 @@ import { GLASS_BUTTON_CLASS } from "@/lib/glass";
 import { getBookingRules, getSchedule, type ClassSlot } from "@/lib/api";
 import { getMyBookedSlotIds, getMyWaitlistedSlotIds, getProfile } from "@/lib/account";
 import { getCurrentUser } from "@/lib/auth";
-import { balanceLabel, formatClassDateTime, hoursLabel } from "@/lib/format";
+import { balanceLabel, formatClassDateTime, groupByWeekAndDay, hoursLabel } from "@/lib/format";
 import { BookableScheduleList } from "@/components/BookableScheduleList";
 import { ServiceUnavailableNotice } from "@/components/ServiceUnavailableNotice";
+import { EmptyScheduleNotice } from "@/components/ScheduleList";
+import { ScheduleWeeks } from "@/components/ScheduleWeeks";
 import { getDirections } from "@/lib/directions";
 
 // «Записаться» — как раздел Telegram-бота: ближайшие свободные занятия с
@@ -52,6 +54,8 @@ export default async function SchedulePage({
     : [null, undefined, undefined];
   const profile = profileResult?.ok ? profileResult.data : null;
   const slots = schedule.ok ? schedule.data : [];
+  // Как в BookableScheduleList: на сайте записи — только открытые занятия.
+  const openSlots = slots.filter((slot) => slot.status === "open");
   const bookedSlot = booked
     ? slots.find((slot) => String(slot.id) === booked)
     : undefined;
@@ -108,15 +112,25 @@ export default async function SchedulePage({
 
       {/* Расписание не загрузилось — не «свободных занятий нет». */}
       {schedule.ok ? (
-        <BookableScheduleList
-          slots={slots}
-          isAuthenticated={currentUser !== null}
-          classKey={activeDirection?.key ?? null}
-          cancellationDeadlineHours={rules.cancellation_deadline_hours}
-          bookedSlotIds={bookedSlotIds}
-          hasTelegram={currentUser?.telegram_id != null}
-          waitlistedSlotIds={waitlistedSlotIds}
-        />
+        openSlots.length === 0 ? (
+          <EmptyScheduleNotice />
+        ) : (
+          <ScheduleWeeks
+            weeks={groupByWeekAndDay(openSlots)}
+            renderDay={(items) => (
+              <BookableScheduleList
+                slots={items}
+                isAuthenticated={currentUser !== null}
+                classKey={activeDirection?.key ?? null}
+                cancellationDeadlineHours={rules.cancellation_deadline_hours}
+                bookedSlotIds={bookedSlotIds}
+                hasTelegram={currentUser?.telegram_id != null}
+                waitlistedSlotIds={waitlistedSlotIds}
+                timeOnly
+              />
+            )}
+          />
+        )
       ) : (
         <ServiceUnavailableNotice />
       )}

@@ -6,7 +6,7 @@ import { SetCredentialsForm } from "@/components/SetCredentialsForm";
 import { isServiceFailure } from "@/lib/apiResult";
 import { ServiceUnavailableNotice } from "@/components/ServiceUnavailableNotice";
 import Link from "next/link";
-import { formatClassDateTime, lessonsCount } from "@/lib/format";
+import { formatClassDateTime, lessonsCount, formatPhone } from "@/lib/format";
 import {
   GLASS_BUTTON_CLASS,
   PRIMARY_BUTTON_CLASS,
@@ -52,7 +52,7 @@ export default async function AccountProfilePage({
         <h2 className="mb-4 font-heading text-xl font-bold tracking-tight">Профиль</h2>
         <dl className="flex flex-col gap-3">
           <Row label="Имя" value={profile.user_name} />
-          <Row label="Телефон" value={profile.phone ?? "не указан"} />
+          <Row label="Телефон" value={profile.phone ? formatPhone(profile.phone) : "не указан"} />
         </dl>
         <p className="mt-4 text-sm text-[var(--text-secondary)]">
           Имя и телефон меняются в Telegram-боте студии: «👤 Профиль».

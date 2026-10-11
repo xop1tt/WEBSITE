@@ -439,6 +439,20 @@ function segmentParams(formData: FormData, segment: string): Record<string, unkn
   return {};
 }
 
+/** Сколько человек получит рассылку — без перезагрузки формы (набранный
+ *  текст не теряется). */
+export async function broadcastRecipientsAction(
+  formData: FormData,
+): Promise<{ recipients: number } | { error: string }> {
+  const segment = String(formData.get("segment") ?? "all");
+  const result = await adminRequest("POST", "/api/admin/broadcasts/preview", {
+    segment,
+    params: segmentParams(formData, segment),
+  });
+  if (!result.ok) return { error: result.message };
+  return { recipients: (result.data as { recipients: number }).recipients };
+}
+
 /** Рассылка: ``preview`` — только посчитать получателей, ``send`` — отправить. */
 export async function broadcastAction(formData: FormData): Promise<void> {
   const segment = String(formData.get("segment") ?? "all");

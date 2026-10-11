@@ -36,3 +36,42 @@ test("STUDIO_TIMEZONE задаёт пояс; правила — из tz database
   assert.equal(berlin.formatClassDateTime("2026-01-15T16:00:00Z", NOW), "Чт 15.01 · 17:00");
   delete process.env.STUDIO_TIMEZONE;
 });
+
+const { formatPhone } = await import("../src/lib/format.ts");
+
+test("formatPhone: российский номер в привычном виде, остальные — с «+»", () => {
+  assert.equal(formatPhone("89001234567"), "+7 (900) 123-45-67");
+  assert.equal(formatPhone("+7 900 123 45 67"), "+7 (900) 123-45-67");
+  assert.equal(formatPhone("9001234567"), "+7 (900) 123-45-67");
+  assert.equal(formatPhone("37443136288"), "+37443136288");
+  assert.equal(formatPhone("не скажу"), "не скажу");
+  assert.equal(formatPhone(null), "—");
+});
+
+const { groupByWeekAndDay, formatWeekRange, formatStudioDay, weekStartOf } = await import(
+  "../src/lib/format.ts"
+);
+
+test("неделя начинается с понедельника, подписи — по-русски", () => {
+  assert.equal(weekStartOf("2026-10-12"), "2026-10-12"); // понедельник
+  assert.equal(weekStartOf("2026-10-18"), "2026-10-12"); // воскресенье
+  assert.equal(formatWeekRange("2026-10-12"), "12–18 октября");
+  assert.equal(formatWeekRange("2026-10-26"), "26 октября – 1 ноября");
+  assert.equal(formatStudioDay("2026-10-12"), "Понедельник, 12 октября");
+});
+
+test("groupByWeekAndDay: день и неделя — по времени студии, а не UTC", () => {
+  const slots = [
+    { id: 1, starts_at: "2026-10-12T17:00:00Z" }, // Пн 20:00 МСК
+    { id: 2, starts_at: "2026-10-18T22:30:00Z" }, // в UTC воскресенье, у студии Пн 19.10 01:30
+    { id: 3, starts_at: "2026-10-19T16:00:00Z" }, // Пн 19.10
+  ];
+  const weeks = groupByWeekAndDay(slots);
+  assert.deepEqual(
+    weeks.map((w) => [w.week, w.count, w.days.map((d) => [d.day, d.items.map((s) => s.id)])]),
+    [
+      ["2026-10-12", 1, [["2026-10-12", [1]]]],
+      ["2026-10-19", 2, [["2026-10-19", [2, 3]]]],
+    ],
+  );
+});

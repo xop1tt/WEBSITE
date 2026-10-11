@@ -9,8 +9,7 @@ import { FAN_INNER_RATIO, FAN_RADIUS_RATIO } from "./fanGeometry";
 // Таймлайн — последовательность сегментов:
 //
 //   hold(hero) → move(hero→directions, ВЕЕР) → hold(directions) →
-//   move(→about) → hold(about) → move(→schedule) → hold(schedule) →
-//   move(→contacts) → hold(contacts)
+//   move(→about) → hold(about) → move(→schedule) → hold(schedule)
 //
 // move — "камера" переходит в следующую сцену (контент уходит/входит с
 // параллаксом по глубине data-depth, фон и реквизит двигаются вместе с
@@ -63,8 +62,6 @@ export type Plan = {
   settle: number[];
   /** Активная сцена (принимает клики) по времени таймлайна. */
   activeAt: (t: number) => number;
-  /** Переход с веером: границы и окно, где веер закрывает экран. */
-  fan: { start: number; end: number; snapFrom: number; snapTo: number };
   locate: (t: number) => { seg: number; frac: number };
   timeAt: (loc: { seg: number; frac: number }) => number;
 };
@@ -91,9 +88,11 @@ function coverRadius(vw: number, vh: number, px: number, drop: number) {
 
 export function buildChoreography(scenes: SceneRefs[], st: StageRefs, m: Metrics): Plan {
   const { vw, vh, compact } = m;
+  // Длины в экранах прокрутки. Переход с веером — самый длинный, но не
+  // больше полутора экранов: иначе он ощущается как застревание.
   const L = compact
-    ? { fan: 2.1, move: 0.9, hold: 0.4, last: 0.3 }
-    : { fan: 2.5, move: 1.05, hold: 0.5, last: 0.35 };
+    ? { fan: 1.3, move: 0.75, hold: 0.35, last: 0.3 }
+    : { fan: 1.4, move: 0.8, hold: 0.4, last: 0.35 };
   const lastIndex = scenes.length - 1;
 
   // ---------- Сегменты ----------
@@ -129,12 +128,7 @@ export function buildChoreography(scenes: SceneRefs[], st: StageRefs, m: Metrics
     if (i === 0) return;
     scene.layers.forEach((el) => {
       const z = depthOf(el);
-      const from =
-        i === 1
-          ? { x: vw * 0.08 * z, scale: 1.05 }
-          : i === lastIndex
-            ? { y: vh * 0.08 * z }
-            : { x: D * z, scale: 1.03 };
+      const from = i === 1 ? { x: vw * 0.08 * z, scale: 1.05 } : { x: D * z, scale: 1.03 };
       gsap.set(el, isNested(el) ? from : { opacity: 0, ...from });
     });
   });
@@ -273,53 +267,18 @@ export function buildChoreography(scenes: SceneRefs[], st: StageRefs, m: Metrics
     out.layers.forEach((el, k) => {
       const z = depthOf(el);
       tl.to(el, { x: -D * z, scale: 0.97, duration: d(0.62), ease: "power2.in" }, p(0.015 * k));
-      if (!isNested(el)) tl.to(el, { opacity: 0, duration: d(0.3), ease: "power1.in" }, p(0.2 + 0.025 * k));
+      if (!isNested(el)) tl.to(el, { opacity: 0, duration: d(0.24), ease: "power1.in" }, p(0.08 + 0.02 * k));
     });
     inn.layers.forEach((el, k) => {
       tl.to(el, { x: 0, scale: 1, duration: d(0.6), ease: "power2.out" }, p(0.38 + 0.015 * k));
-      if (!isNested(el)) tl.to(el, { opacity: 1, duration: d(0.3), ease: "power1.out" }, p(0.45 + 0.025 * k));
+      if (!isNested(el)) tl.to(el, { opacity: 1, duration: d(0.28), ease: "power1.out" }, p(0.42 + 0.02 * k));
     });
     // Дальние слои фона — медленнее контента: глубина.
     tl.to(st.glowA, { x: `-=${D * 0.45}`, duration: seg.dur, ease: "sine.inOut" }, seg.start)
       .to(st.glowB, { x: `-=${D * 0.3}`, y: `+=${vh * 0.04}`, duration: seg.dur, ease: "sine.inOut" }, seg.start)
       .to(st.lunares, { x: `-=${D * 0.22}`, duration: seg.dur, ease: "sine.inOut" }, seg.start);
   };
-  moves.slice(1, -1).forEach(pan);
-
-  // ---------- Финал: сцена снова темнеет — "после танца" ----------
-  {
-    const seg = moves[moves.length - 1];
-    const out = scenes[seg.scene - 1];
-    const inn = scenes[seg.scene];
-    const p = (v: number) => seg.start + v * seg.dur;
-    const d = (v: number) => v * seg.dur;
-    out.layers.forEach((el, k) => {
-      const z = depthOf(el);
-      tl.to(el, { y: -vh * 0.07 * z, scale: 0.94, duration: d(0.55), ease: "power2.in" }, p(0.015 * k));
-      if (!isNested(el)) tl.to(el, { opacity: 0, duration: d(0.3), ease: "power1.in" }, p(0.12 + 0.025 * k));
-    });
-    tl.to(st.tone, { opacity: 0, duration: d(0.35), ease: "sine.inOut" }, p(0.25))
-      .to(st.vignette, { opacity: 1, duration: d(0.35) }, p(0.25))
-      .to(st.spot, { x: 0, scale: 1, duration: d(0.6), ease: "sine.out" }, p(0.3))
-      .to(st.beam, { x: 0, rotation: 4, duration: d(0.6), ease: "sine.out" }, p(0.3))
-      .to([st.base, st.floor], { scale: 1, duration: d(0.6), ease: "sine.out" }, p(0.3));
-
-    // Веер поднимается снизу на своё место из hero — финальная поза,
-    // кастаньеты ложатся рядом: композиция замыкается на начало.
-    tl.set(st.fan, { x: fanHome.x, y: vh * 1.45, rotation: -40, scale: sc(R0 * 0.95), opacity: 0.9, zIndex: 1 }, p(0.2))
-      .to(st.fan, { y: fanHome.y, rotation: fanHome.rotation + 2, duration: d(0.65), ease: "power3.out" }, p(0.32));
-    tl.set(st.castanets, { x: vw * 1.2, y: vh * 0.98, rotation: 50, scale: C * 0.9 }, p(0.2))
-      .to(st.castanets, {
-        x: castHome.x, y: castHome.y, rotation: castHome.rotation - 4,
-        duration: d(0.6), ease: "power2.out",
-      }, p(0.4));
-    if (m.soft) tl.set(st.castanets, { filter: "blur(2px)" }, p(0.2));
-
-    inn.layers.forEach((el, k) => {
-      tl.to(el, { y: 0, duration: d(0.55), ease: "power2.out" }, p(0.42 + 0.015 * k));
-      if (!isNested(el)) tl.to(el, { opacity: 1, duration: d(0.3), ease: "power1.out" }, p(0.48 + 0.025 * k));
-    });
-  }
+  moves.slice(1).forEach(pan);
 
   // ---------- Удержания: дрейф и прокрутка высокого контента ----------
   segments.forEach((seg) => {
@@ -341,7 +300,6 @@ export function buildChoreography(scenes: SceneRefs[], st: StageRefs, m: Metrics
       while (i < boundaries.length && t >= boundaries[i]) i++;
       return i;
     },
-    fan: { start: T0.start, end: T0.start + T0.dur, snapFrom: at(0.45), snapTo: at(0.9) },
     locate: (t) => {
       for (let i = segments.length - 1; i >= 0; i--) {
         const s = segments[i];

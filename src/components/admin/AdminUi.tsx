@@ -1,5 +1,6 @@
 import { STUDIO_TIMEZONE } from "@/lib/format";
-import { ERROR_NOTICE_CLASS, SUCCESS_NOTICE_CLASS } from "@/lib/glass";
+import Link from "next/link";
+import { ERROR_NOTICE_CLASS, GLASS_BUTTON_CLASS, SUCCESS_NOTICE_CLASS } from "@/lib/glass";
 
 // Общие мелкие элементы админ-панели (серверные компоненты).
 
@@ -24,6 +25,29 @@ export function StatCard({
       </span>
       {hint && <span className="text-xs text-[var(--text-secondary)]">{hint}</span>}
     </div>
+  );
+}
+
+/** Вкладки внутри раздела («Открытые/Закрытые», «Операции/Журнал/Сверка»):
+ *  мельче меню админки, текущая — цветом текста, как в меню. */
+export function SubTabs({ tabs }: { tabs: { href: string; label: string; active: boolean }[] }) {
+  return (
+    <nav className="flex flex-wrap gap-2">
+      {tabs.map((tab) => (
+        <Link
+          key={tab.href}
+          href={tab.href}
+          aria-current={tab.active ? "page" : undefined}
+          className={`${GLASS_BUTTON_CLASS} px-4 py-1.5 text-sm ${
+            tab.active
+              ? "font-semibold text-[var(--primary-text)]"
+              : "text-[var(--text-secondary)] hover:text-[var(--primary-text)]"
+          }`}
+        >
+          {tab.label}
+        </Link>
+      ))}
+    </nav>
   );
 }
 

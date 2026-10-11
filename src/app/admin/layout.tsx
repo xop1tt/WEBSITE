@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
-import { NavLink } from "@/components/NavLink";
+import { Suspense } from "react";
+import { getAdminDashboard } from "@/lib/admin";
+import { AdminNav, type AdminRole } from "@/components/admin/AdminNav";
 import { ServiceUnavailableNotice } from "@/components/ServiceUnavailableNotice";
 
 export const metadata: Metadata = {
@@ -11,24 +13,19 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
-// Разделы по роли: преподаватель видит только свои занятия и поддержку.
-// Это лишь навигация — права проверяет backend на каждом /api/admin/*.
-const ADMIN_LINKS = [
-  { href: "/admin", label: "Сводка", roles: ["admin"] },
-  { href: "/admin/schedule", label: "Расписание", roles: ["admin", "teacher"] },
-  { href: "/admin/users", label: "Участники", roles: ["admin"] },
-  { href: "/admin/payments", label: "Платежи", roles: ["admin"] },
-  { href: "/admin/finance", label: "Финансы", roles: ["admin"] },
-  { href: "/admin/reports", label: "Отчёты", roles: ["admin"] },
-  { href: "/admin/broadcasts", label: "Рассылки", roles: ["admin"] },
-  { href: "/admin/notifications", label: "Уведомления", roles: ["admin"] },
-  { href: "/admin/support", label: "Поддержка", roles: ["admin", "teacher"] },
-  { href: "/admin/catalog", label: "Каталог", roles: ["admin"] },
-  { href: "/admin/settings", label: "Настройки", roles: ["admin"] },
-  { href: "/admin/staff", label: "Сотрудники", roles: ["admin"] },
-  { href: "/admin/system", label: "Система", roles: ["admin"] },
-  { href: "/admin/maintenance", label: "Обслуживание", roles: ["admin"] },
-] as const;
+// Счётчики на вкладках: открытые обращения и неоплаченные платежи. Грузятся
+// отдельно (Suspense) — раздел не ждёт сводку.
+async function AdminNavWithCounts({ role }: { role: AdminRole }) {
+  if (role !== "admin") return <AdminNav role={role} />;
+  const dashboard = await getAdminDashboard();
+  const counts = dashboard.ok
+    ? {
+        "/admin/support": dashboard.data.open_tickets,
+        "/admin/payments": dashboard.data.pending_payments,
+      }
+    : {};
+  return <AdminNav role={role} counts={counts} />;
+}
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession();
@@ -57,15 +54,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           {role === "admin" ? "Админка" : "Кабинет преподавателя"}
         </h1>
       </div>
-      <nav className="flex flex-wrap gap-1">
-        {ADMIN_LINKS.filter((link) => (link.roles as readonly string[]).includes(role)).map(
-          (link) => (
-            <NavLink key={link.href} href={link.href}>
-              {link.label}
-            </NavLink>
-          ),
-        )}
-      </nav>
+      <Suspense fallback={<AdminNav role={role} />}>
+        <AdminNavWithCounts role={role} />
+      </Suspense>
       {children}
     </div>
   );

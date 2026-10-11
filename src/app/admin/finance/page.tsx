@@ -2,9 +2,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { getAdminAudit, getAdminLedger, getAdminReconciliation } from "@/lib/admin";
 import { isServiceFailure } from "@/lib/apiResult";
-import { GLASS_BUTTON_CLASS, INPUT_CLASS } from "@/lib/glass";
+import { GLASS_BUTTON_CLASS } from "@/lib/glass";
 import { ServiceUnavailableNotice } from "@/components/ServiceUnavailableNotice";
-import { EmptyState, formatAdminDateTime } from "@/components/admin/AdminUi";
+import { EmptyState, SubTabs, formatAdminDateTime } from "@/components/admin/AdminUi";
+import {
+  ParticipantField,
+  ParticipantMatches,
+  filterTelegramId,
+  resolveParticipantFilter,
+} from "@/components/admin/ParticipantFilter";
 
 export const metadata: Metadata = {
   title: "Финансы",
@@ -13,6 +19,7 @@ export const metadata: Metadata = {
 type SearchParams = Promise<{
   tab?: string;
   telegram_id?: string;
+  who?: string;
   before?: string;
 }>;
 
@@ -31,17 +38,13 @@ export default async function AdminFinancePage({ searchParams }: { searchParams:
 
   return (
     <div className="flex flex-col gap-4">
-      <nav className="flex flex-wrap gap-2">
-        {TABS.map(([key, label]) => (
-          <Link
-            key={key}
-            href={`/admin/finance?tab=${key}`}
-            className={`${GLASS_BUTTON_CLASS} px-4 py-1.5 text-sm ${tab === key ? "glass-accent" : ""}`}
-          >
-            {label}
-          </Link>
-        ))}
-      </nav>
+      <SubTabs
+        tabs={TABS.map(([key, label]) => ({
+          href: `/admin/finance?tab=${key}`,
+          label,
+          active: tab === key,
+        }))}
+      />
       {tab === "ledger" && <Ledger params={params} />}
       {tab === "audit" && <Audit before={params.before} />}
       {tab === "reconciliation" && <Reconciliation />}
@@ -49,10 +52,11 @@ export default async function AdminFinancePage({ searchParams }: { searchParams:
   );
 }
 
-async function Ledger({ params }: { params: { telegram_id?: string; before?: string } }) {
-  const telegramId = Number(params.telegram_id);
+async function Ledger({ params }: { params: { telegram_id?: string; who?: string; before?: string } }) {
+  const participant = await resolveParticipantFilter(params);
   const before = Number(params.before);
-  const validId = Number.isInteger(telegramId) && telegramId > 0 ? telegramId : undefined;
+  const validId = filterTelegramId(participant);
+  const filterUnresolved = participant.kind === "choose" || participant.kind === "notFound";
   const result = await getAdminLedger({
     telegram_id: validId,
     before_id: Number.isInteger(before) && before > 0 ? before : undefined,
@@ -64,15 +68,22 @@ async function Ledger({ params }: { params: { telegram_id?: string; before?: str
     <section className={SECTION}>
       <form className="flex flex-wrap items-end gap-2">
         <input type="hidden" name="tab" value="ledger" />
-        <label className="flex flex-col gap-1 text-xs font-medium">
-          Telegram ID участника
-          <input name="telegram_id" inputMode="numeric" defaultValue={params.telegram_id ?? ""} className={`${INPUT_CLASS} w-40 py-1.5`} />
-        </label>
+        <ParticipantField who={params.who ?? params.telegram_id} />
         <button type="submit" className={`${GLASS_BUTTON_CLASS} px-4 py-1.5 text-sm`}>
           Показать
         </button>
       </form>
-      {result.data.items.length === 0 ? (
+      <ParticipantMatches
+        filter={participant}
+        hrefFor={(user) =>
+          `/admin/finance?${new URLSearchParams({
+            tab: "ledger",
+            who: user.name,
+            telegram_id: String(user.telegram_id),
+          }).toString()}`
+        }
+      />
+      {filterUnresolved ? null : result.data.items.length === 0 ? (
         <p className="text-sm text-[var(--text-secondary)]">Операций нет.</p>
       ) : (
         <ul className="flex flex-col gap-1 text-sm">
@@ -95,7 +106,7 @@ async function Ledger({ params }: { params: { telegram_id?: string; before?: str
           ))}
         </ul>
       )}
-      {result.data.next_before_id && (
+      {!filterUnresolved && result.data.next_before_id && (
         <Link
           href={`/admin/finance?${new URLSearchParams({
             tab: "ledger",

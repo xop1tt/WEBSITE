@@ -235,6 +235,9 @@
 body {
   background: var(--background);
   color: var(--text-primary);
+  /* Галочки, радиокнопки и ползунки — винным цветом сайта, а не
+     системным синим. */
+  accent-color: var(--primary);
   font-family: Arial, Helvetica, sans-serif;
   position: relative;
   transition: background-color 0.3s ease, color 0.3s ease;
@@ -286,20 +289,6 @@ body {
   box-shadow:
     inset 0 1px 0 var(--glass-edge-top),
     0 -1px 0 var(--glass-border);
-}
-
-/* На главной футер идёт сразу после тёмной финальной сцены — без перехода
-   это был бы резкий пиксель-в-пиксель обрез тёмного в светлое. Scoped
-   через :has(), чтобы на остальных страницах футер не менялся. */
-body:has([data-scene="contacts"]) .footer-surface::before {
-  content: "";
-  position: absolute;
-  top: -1px;
-  left: 0;
-  right: 0;
-  height: 120px;
-  background: linear-gradient(to bottom, #070304, transparent);
-  pointer-events: none;
 }
 
 /* ==========================================================================
@@ -896,11 +885,6 @@ body:has(.scenes) .site-header {
   width: 100%;
 }
 
-.scenes:not([data-live]) [data-scene="contacts"] {
-  padding: 96px 0;
-  background: radial-gradient(120% 90% at 70% 30%, #2a0d13 0%, #120607 55%, #070304 100%);
-}
-
 .scenes[data-live] .scenes-viewport {
   position: sticky;
   top: 0;
@@ -1355,6 +1339,57 @@ body:has(.maintenance-screen) .footer-surface {
   background: var(--primary);
   box-shadow: 0 0 0 0 color-mix(in srgb, var(--primary) 45%, transparent);
   animation: maintenance-breathe 2.4s ease-in-out infinite;
+}
+
+/* Заготовка страницы на время загрузки (PageSkeleton). */
+.skeleton-line {
+  background: color-mix(in srgb, var(--text-primary) 9%, transparent);
+  animation: skeleton-breathe 1.4s ease-in-out infinite;
+}
+
+@keyframes skeleton-breathe {
+  50% { opacity: 0.45; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-line {
+    animation: none;
+  }
+}
+
+/* Ссылка, чья страница ещё грузится (LinkPendingHint): тонкая полоса
+   у нижнего края, плавно «дышит». Появляется с задержкой — быстрые
+   переходы проходят без мигания. */
+.link-pending {
+  position: absolute;
+  left: 50%;
+  bottom: 3px;
+  width: 40%;
+  max-width: 48px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--primary);
+  opacity: 0;
+  translate: -50% 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.link-pending[data-pending] {
+  opacity: 1;
+  transition-delay: 0.12s;
+  animation: link-pending 0.9s ease-in-out infinite alternate;
+}
+
+@keyframes link-pending {
+  from { width: 20%; }
+  to { width: 60%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .link-pending[data-pending] {
+    animation: none;
+  }
 }
 
 @keyframes maintenance-breathe {

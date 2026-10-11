@@ -6,6 +6,12 @@ import { GLASS_BUTTON_CLASS, INPUT_CLASS } from "@/lib/glass";
 import { ServiceUnavailableNotice } from "@/components/ServiceUnavailableNotice";
 import { PaymentActions } from "@/components/admin/PaymentActions";
 import {
+  ParticipantField,
+  ParticipantMatches,
+  filterTelegramId,
+  resolveParticipantFilter,
+} from "@/components/admin/ParticipantFilter";
+import {
   Badge,
   EmptyState,
   Notices,
@@ -36,6 +42,7 @@ type SearchParams = Promise<{
   status?: string;
   before?: string;
   telegram_id?: string;
+  who?: string;
   notice?: string;
   error?: string;
 }>;
@@ -44,11 +51,15 @@ export default async function AdminPaymentsPage({ searchParams }: { searchParams
   const params = await searchParams;
   const status = STATUS_FILTERS.some(([value]) => value === params.status) ? params.status : "";
   const before = Number(params.before);
-  const telegramId = Number(params.telegram_id);
+  const participant = await resolveParticipantFilter(params);
+  const telegramId = filterTelegramId(participant);
+  // Несколько совпадений или никого — платежи всех показывать нельзя:
+  // админ решил бы, что это платежи искомого человека.
+  const filterUnresolved = participant.kind === "choose" || participant.kind === "notFound";
   const result = await getAdminPayments({
     status: status || undefined,
     before_id: Number.isInteger(before) && before > 0 ? before : undefined,
-    telegram_id: Number.isInteger(telegramId) && telegramId > 0 ? telegramId : undefined,
+    telegram_id: telegramId,
   });
   if (!result.ok) {
     return isServiceFailure(result) ? <ServiceUnavailableNotice /> : <EmptyState>Нет доступа.</EmptyState>;
@@ -70,21 +81,24 @@ export default async function AdminPaymentsPage({ searchParams }: { searchParams
             ))}
           </select>
         </label>
-        <label className="flex flex-col gap-1 text-xs font-medium">
-          Telegram ID участника
-          <input
-            name="telegram_id"
-            inputMode="numeric"
-            defaultValue={params.telegram_id ?? ""}
-            className={`${INPUT_CLASS} w-40 py-1.5`}
-          />
-        </label>
+        <ParticipantField who={params.who ?? params.telegram_id} />
         <button type="submit" className={`${GLASS_BUTTON_CLASS} px-4 py-1.5 text-sm`}>
           Показать
         </button>
       </form>
 
-      {page.items.length === 0 ? (
+      <ParticipantMatches
+        filter={participant}
+        hrefFor={(user) =>
+          `/admin/payments?${new URLSearchParams({
+            ...(status ? { status } : {}),
+            who: user.name,
+            telegram_id: String(user.telegram_id),
+          }).toString()}`
+        }
+      />
+
+      {filterUnresolved ? null : page.items.length === 0 ? (
         <EmptyState>Платежей не найдено.</EmptyState>
       ) : (
         <div className="overflow-x-auto rounded-[24px] glass-medium">
@@ -141,11 +155,11 @@ export default async function AdminPaymentsPage({ searchParams }: { searchParams
           </table>
         </div>
       )}
-      {page.next_before_id && (
+      {!filterUnresolved && page.next_before_id && (
         <Link
           href={`/admin/payments?${new URLSearchParams({
             ...(status ? { status } : {}),
-            ...(params.telegram_id ? { telegram_id: params.telegram_id } : {}),
+            ...(telegramId ? { telegram_id: String(telegramId) } : {}),
             before: String(page.next_before_id),
           }).toString()}`}
           className={`${GLASS_BUTTON_CLASS} self-start px-4 py-2 text-sm`}

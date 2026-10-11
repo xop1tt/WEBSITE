@@ -13,10 +13,18 @@ import { getCurrentUser } from "@/lib/auth";
 import { broadcastAction, copyWeekAction, createSlotAction, slotAction } from "@/lib/adminActions";
 import { getClasses } from "@/lib/api";
 import { isServiceFailure } from "@/lib/apiResult";
-import { STUDIO_TIMEZONE, formatClassDateTime } from "@/lib/format";
+import {
+  STUDIO_TIMEZONE,
+  formatClassDateTime,
+  formatPhone,
+  groupByWeekAndDay,
+  studioDate,
+  weekStartOf,
+} from "@/lib/format";
 import { GLASS_BUTTON_CLASS, INPUT_CLASS, PRIMARY_BUTTON_CLASS } from "@/lib/glass";
 import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
 import { ServiceUnavailableNotice } from "@/components/ServiceUnavailableNotice";
+import { ScheduleWeeks } from "@/components/ScheduleWeeks";
 import { Badge, EmptyState, Notices, formatAdminDateTime } from "@/components/admin/AdminUi";
 
 export const metadata: Metadata = {
@@ -83,30 +91,22 @@ export default async function AdminSchedulePage({ searchParams }: { searchParams
       ? await Promise.all([getAdminParticipants(selectedId), getAdminSlotWaitlist(selectedId)])
       : [null, null];
   const classOptions = classes.ok ? classes.data : [];
+  const selectedSlot = slots.data.find((slot) => slot.id === selectedId);
 
   return (
     <div className="flex flex-col gap-6">
       <Notices notice={notice} error={error} />
 
-      <form className="flex flex-wrap items-end gap-2 text-sm">
-        <span className="font-medium">Архив занятий:</span>
-        <label className="flex flex-col gap-1 text-xs font-medium">
-          с
-          <input type="date" name="from" defaultValue={from} className={`${INPUT_CLASS} py-1.5`} />
-        </label>
-        <label className="flex flex-col gap-1 text-xs font-medium">
-          по
-          <input type="date" name="to" defaultValue={to} className={`${INPUT_CLASS} py-1.5`} />
-        </label>
-        <button type="submit" className={`${GLASS_BUTTON_CLASS} px-4 py-1.5 text-sm`}>
-          Показать
-        </button>
-        {archive && (
+      {archive && (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="font-heading text-xl font-bold tracking-tight">
+            Архив: {from!.split("-").reverse().join(".")} — {to!.split("-").reverse().join(".")}
+          </h2>
           <Link href="/admin/schedule" className={`${GLASS_BUTTON_CLASS} px-4 py-1.5 text-sm`}>
-            К ближайшим
+            ← К ближайшим занятиям
           </Link>
-        )}
-      </form>
+        </div>
+      )}
 
       {isAdmin && !archive && (
         <details className="rounded-[24px] glass-medium p-5" open={slots.data.length === 0}>
@@ -162,23 +162,32 @@ export default async function AdminSchedulePage({ searchParams }: { searchParams
       )}
 
       {isAdmin && !archive && (
-        <form action={copyWeekAction} className="flex flex-wrap items-end gap-2 rounded-[24px] glass-subtle p-4 text-sm">
-          <span className="font-medium">Скопировать неделю:</span>
-          <label className="flex flex-col gap-1 text-xs font-medium">
-            любой день недели-образца
-            <input type="date" name="week_start" required className={`${INPUT_CLASS} py-1.5`} />
-          </label>
-          <label className="flex flex-col gap-1 text-xs font-medium">
-            на недель вперёд
-            <input type="number" name="weeks" min={1} max={12} defaultValue={1} className={`${INPUT_CLASS} w-24 py-1.5`} />
-          </label>
-          <ConfirmSubmitButton
-            confirmMessage="Скопировать занятия этой недели (с преподавателями и вместимостью)? Уже существующие и прошедшие занятия пропускаются."
-            className={`${GLASS_BUTTON_CLASS} px-4 py-1.5 text-sm`}
-          >
-            Скопировать
-          </ConfirmSubmitButton>
-        </form>
+        <details className="rounded-[24px] glass-medium p-5">
+          <summary className="cursor-pointer font-heading text-lg font-bold tracking-tight">
+            Скопировать неделю
+          </summary>
+          <p className="mt-3 text-sm leading-relaxed text-[var(--text-secondary)]">
+            Занятия выбранной недели (с понедельника по воскресенье) появятся на
+            следующих неделях в те же дни и время — с тем же преподавателем и
+            числом мест. Уже существующие и прошедшие занятия пропускаются.
+          </p>
+          <form action={copyWeekAction} className="mt-4 flex flex-wrap items-end gap-3">
+            <label className="flex flex-col gap-1.5 text-sm font-medium">
+              Неделя-образец (любой её день)
+              <input type="date" name="week_start" required className={INPUT_CLASS} />
+            </label>
+            <label className="flex w-48 flex-col gap-1.5 text-sm font-medium">
+              Сколько недель заполнить
+              <input type="number" name="weeks" min={1} max={12} defaultValue={1} className={INPUT_CLASS} />
+            </label>
+            <ConfirmSubmitButton
+              confirmMessage="Скопировать занятия этой недели (с преподавателями и вместимостью)? Уже существующие и прошедшие занятия пропускаются."
+              className={`${PRIMARY_BUTTON_CLASS} px-5 py-2 text-sm`}
+            >
+              Скопировать
+            </ConfirmSubmitButton>
+          </form>
+        </details>
       )}
 
       {slots.data.length === 0 ? (
@@ -190,20 +199,52 @@ export default async function AdminSchedulePage({ searchParams }: { searchParams
               : "Вам пока не назначены занятия."}
         </EmptyState>
       ) : (
-        <ul className="flex flex-col gap-3">
-          {slots.data.map((slot) => (
-            <SlotRow
-              key={slot.id}
-              slot={slot}
-              expanded={slot.id === selectedId}
-              participants={slot.id === selectedId && participants?.ok ? participants.data : null}
-              waitlist={slot.id === selectedId && waitlist?.ok ? waitlist.data : []}
-              teachers={isAdmin ? teachers : null}
-              archived={archive !== undefined}
-            />
-          ))}
-        </ul>
+        <ScheduleWeeks
+          weeks={groupByWeekAndDay(slots.data)}
+          // Архив за выбранный период показываем раскрытым целиком.
+          openWeeks={archive ? Infinity : 2}
+          forceOpen={selectedSlot ? weekStartOf(studioDate(selectedSlot.starts_at)) : undefined}
+          weekSummary={(week) => {
+            const items = week.days.flatMap((day) => day.items);
+            const booked = items.reduce((total, slot) => total + slot.booked, 0);
+            return `занятий: ${week.count} · записано: ${booked}`;
+          }}
+          renderDay={(items) => (
+            <ul className="flex flex-col gap-3">
+              {items.map((slot) => (
+                <SlotRow
+                  key={slot.id}
+                  slot={slot}
+                  expanded={slot.id === selectedId}
+                  participants={slot.id === selectedId && participants?.ok ? participants.data : null}
+                  waitlist={slot.id === selectedId && waitlist?.ok ? waitlist.data : []}
+                  teachers={isAdmin ? teachers : null}
+                  archived={archive !== undefined}
+                />
+              ))}
+            </ul>
+          )}
+        />
       )}
+
+      {/* Архив нужен редко — внизу, свёрнутым (в режиме архива — раскрыт,
+          чтобы сменить период). */}
+      <details className="rounded-[24px] glass-subtle p-4" open={archive !== undefined}>
+        <summary className="cursor-pointer text-sm font-medium">Архив прошедших занятий</summary>
+        <form className="mt-3 flex flex-wrap items-end gap-2 text-sm">
+          <label className="flex flex-col gap-1 text-xs font-medium">
+            с
+            <input type="date" name="from" defaultValue={from} className={`${INPUT_CLASS} py-1.5`} />
+          </label>
+          <label className="flex flex-col gap-1 text-xs font-medium">
+            по
+            <input type="date" name="to" defaultValue={to} className={`${INPUT_CLASS} py-1.5`} />
+          </label>
+          <button type="submit" className={`${GLASS_BUTTON_CLASS} px-4 py-1.5 text-sm`}>
+            Показать
+          </button>
+        </form>
+      </details>
     </div>
   );
 }
@@ -262,8 +303,9 @@ function SlotRow({
         <div className="flex flex-col gap-1">
           <div className="flex flex-wrap items-baseline gap-2">
             <span className="font-medium">{slot.class_label}</span>
-            <span className="text-sm text-[var(--text-secondary)]">
-              {formatClassDateTime(slot.starts_at)}
+            {/* День — в заголовке группы, здесь только время. */}
+            <span className="text-sm font-medium text-[var(--text-secondary)]">
+              {formatClassDateTime(slot.starts_at).split(" · ").at(-1)}
             </span>
             <Badge tone={status.tone}>{status.label}</Badge>
             {slot.rescheduled && <Badge>перенесено</Badge>}
@@ -316,7 +358,7 @@ function SlotRow({
               {participants.map((participant) => (
                 <li key={participant.booking_id} className="flex flex-wrap gap-x-3">
                   <span className="font-medium">{participant.user_name}</span>
-                  <span className="text-[var(--text-secondary)]">{participant.phone ?? "без телефона"}</span>
+                  <span className="text-[var(--text-secondary)]">{participant.phone ? formatPhone(participant.phone) : "без телефона"}</span>
                   <span className="text-[var(--text-secondary)]">
                     записан {formatAdminDateTime(participant.booked_at)}
                   </span>
