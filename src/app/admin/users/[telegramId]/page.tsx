@@ -9,11 +9,14 @@ import {
   getAdminLedger,
   getAdminPayments,
   getAdminSlots,
+  getClientNotes,
   type AdminClientCard,
 } from "@/lib/admin";
 import {
+  addNoteAction,
   adjustCreditsAction,
   adminBookAction,
+  deleteNoteAction,
   adminCancelBookingAction,
   clientProfileAction,
   grantPackageAction,
@@ -58,7 +61,7 @@ export default async function AdminClientPage({
     notFound();
   }
   const offset = Math.max(0, Number(rawOffset) || 0);
-  const [card, bookings, payments, ledger, tickets, catalog, slots] = await Promise.all([
+  const [card, bookings, payments, ledger, tickets, catalog, slots, notes] = await Promise.all([
     getAdminClient(telegramId),
     getAdminClientBookings(telegramId, offset),
     getAdminPayments({ telegram_id: telegramId, limit: 20 }),
@@ -66,6 +69,7 @@ export default async function AdminClientPage({
     getAdminClientTickets(telegramId),
     getPackages(),
     getAdminSlots(),
+    getClientNotes(telegramId),
   ]);
   const upcomingIds = new Set(card.ok ? card.data.upcoming.map((b) => b.slot_id) : []);
   // Куда можно записать: открытые занятия со свободными местами, на
@@ -90,6 +94,40 @@ export default async function AdminClientPage({
       <Notices notice={notice} error={error} />
 
       <Header client={client} />
+
+      <section className={SECTION}>
+        <h2 className={H2}>Заметки</h2>
+        <p className="text-xs text-[var(--text-secondary)]">
+          Служебные: участник их не видит; последнюю заметку видит преподаватель
+          в списке участников своего занятия.
+        </p>
+        {notes.ok && notes.data.length > 0 && (
+          <ul className="flex flex-col gap-2 text-sm">
+            {notes.data.map((note) => (
+              <li key={note.id} className="flex flex-wrap items-start gap-x-3">
+                <span className="whitespace-pre-line">{note.body}</span>
+                <span className="text-xs text-[var(--text-secondary)]">
+                  {note.author_name ?? "—"} · {formatAdminDateTime(note.created_at)}
+                </span>
+                <form action={deleteNoteAction}>
+                  <input type="hidden" name="telegram_id" value={telegramId} />
+                  <input type="hidden" name="note_id" value={note.id} />
+                  <ConfirmSubmitButton confirmMessage="Удалить заметку?" className="text-xs text-[var(--danger-text)]">
+                    удалить
+                  </ConfirmSubmitButton>
+                </form>
+              </li>
+            ))}
+          </ul>
+        )}
+        <form action={addNoteAction} className="flex flex-wrap items-end gap-2">
+          <input type="hidden" name="telegram_id" value={telegramId} />
+          <textarea name="body" required maxLength={1000} rows={2} placeholder="уровень, ограничения, договорённости" className={`${INPUT_CLASS} min-w-72 flex-1`} />
+          <button type="submit" className={`${GLASS_BUTTON_CLASS} px-4 py-2 text-sm`}>
+            Добавить
+          </button>
+        </form>
+      </section>
 
       <section className={SECTION}>
         <h2 className={H2}>Запись на занятия</h2>

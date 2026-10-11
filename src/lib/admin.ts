@@ -72,6 +72,8 @@ export type AdminParticipant = {
   phone: string | null;
   booked_at: string;
   status: string;
+  // Последняя служебная заметка об участнике.
+  note: string | null;
 };
 
 export type AdminAccount = {
@@ -276,3 +278,76 @@ export const getAdminTickets = (status: "open" | "closed") =>
   adminGet<AdminTicket[]>(`/api/admin/support?status=${status}`);
 export const getAdminThread = (ticketId: number) =>
   adminGet<AdminThread>(`/api/admin/support/${ticketId}`);
+
+export type Broadcast = {
+  id: number;
+  author_name: string | null;
+  body: string;
+  segment: string;
+  segment_params: Record<string, unknown>;
+  recipients: number;
+  created_at: string;
+  sent: number;
+  failed: number;
+};
+
+export type ClientNote = {
+  id: number;
+  author_name: string | null;
+  body: string;
+  created_at: string;
+};
+
+export type FailedNotification = {
+  id: number;
+  telegram_id: number;
+  user_name: string | null;
+  kind: string;
+  delivery_status: string;
+  attempts: number;
+  last_error: string | null;
+  created_at: string;
+};
+
+type FillRow = { key: number | string; label?: string; slots: number; booked: number; capacity: number };
+
+export type AdminReport = {
+  from: string;
+  to: string;
+  revenue_by_month: {
+    month: string;
+    payments: number;
+    amount_minor: number;
+    refunded: number;
+    refunded_minor: number;
+  }[];
+  packages: { title: string; payments: number; amount_minor: number }[];
+  granted_lessons: number;
+  fill_by_direction: FillRow[];
+  fill_by_weekday: FillRow[];
+  fill_by_hour: FillRow[];
+  cancellations: { by_users: number; by_studio: number; total: number };
+  buyers: number;
+  repeat_buyers: number;
+  new_users: number;
+  sleeping_days: number;
+  sleeping_clients: {
+    telegram_id: number;
+    user_name: string;
+    phone: string | null;
+    lesson_credits: number;
+    last_booking_at: string | null;
+  }[];
+};
+
+export const getBroadcasts = () => adminGet<Broadcast[]>("/api/admin/broadcasts");
+export const getClientNotes = (telegramId: number) =>
+  adminGet<ClientNote[]>(`/api/admin/clients/${telegramId}/notes`);
+export const getFailedNotifications = (beforeId?: number) =>
+  adminGet<{
+    stats: Record<string, number>;
+    items: FailedNotification[];
+    next_before_id: number | null;
+  }>(`/api/admin/notifications/failed${query({ before_id: beforeId })}`);
+export const getAdminReport = (params: { from?: string; to?: string; sleeping_days?: number }) =>
+  adminGet<AdminReport>(`/api/admin/reports${query(params)}`);

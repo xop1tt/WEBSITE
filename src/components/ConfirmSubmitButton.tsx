@@ -7,14 +7,22 @@ export function ConfirmSubmitButton({
   confirmMessage,
   className,
   children,
+  name,
+  value,
 }: {
   confirmMessage: string;
   className?: string;
   children: React.ReactNode;
+  // Имя и значение кнопки уходят вместе с формой (одна форма — несколько
+  // действий).
+  name?: string;
+  value?: string;
 }) {
   return (
     <button
       type="submit"
+      name={name}
+      value={value}
       className={className}
       onClick={(event) => {
         if (!window.confirm(confirmMessage)) {

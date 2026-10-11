@@ -10,7 +10,7 @@ import {
   type StaffMember,
 } from "@/lib/admin";
 import { getCurrentUser } from "@/lib/auth";
-import { copyWeekAction, createSlotAction, slotAction } from "@/lib/adminActions";
+import { broadcastAction, copyWeekAction, createSlotAction, slotAction } from "@/lib/adminActions";
 import { getClasses } from "@/lib/api";
 import { isServiceFailure } from "@/lib/apiResult";
 import { STUDIO_TIMEZONE, formatClassDateTime } from "@/lib/format";
@@ -321,9 +321,32 @@ function SlotRow({
                     записан {formatAdminDateTime(participant.booked_at)}
                   </span>
                   {participant.status !== "confirmed" && <Badge>{participant.status}</Badge>}
+                  {participant.note && (
+                    <span className="basis-full text-xs text-[var(--text-secondary)]">📝 {participant.note}</span>
+                  )}
                 </li>
               ))}
             </ul>
+          )}
+
+          {participants && participants.some((p) => p.status === "confirmed") && (
+            <form action={broadcastAction} className="flex flex-wrap items-end gap-2">
+              <input type="hidden" name="segment" value="slot" />
+              <input type="hidden" name="slot_id" value={slot.id} />
+              <input type="hidden" name="return_to" value={`/admin/schedule?slot=${slot.id}`} />
+              <label className="flex flex-1 flex-col gap-1 text-xs font-medium">
+                Написать записанным
+                <input name="body" required maxLength={2000} placeholder="например: «Возьмите туфли с каблуком»" className={`${INPUT_CLASS} py-1.5`} />
+              </label>
+              <ConfirmSubmitButton
+                name="mode"
+                value="send"
+                confirmMessage="Отправить сообщение всем записанным на это занятие?"
+                className={`${GLASS_BUTTON_CLASS} px-3 py-1.5 text-sm`}
+              >
+                Отправить
+              </ConfirmSubmitButton>
+            </form>
           )}
 
           {waitlist.length > 0 && (

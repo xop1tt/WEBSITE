@@ -426,3 +426,55 @@ export async function adminCancelBookingAction(formData: FormData): Promise<void
   const message = (result.data as { message?: string } | null)?.message ?? "Готово";
   back(path, { notice: message });
 }
+
+function segmentParams(formData: FormData, segment: string): Record<string, unknown> {
+  if (segment === "with_credits") {
+    const days = Number(formData.get("inactive_days"));
+    return days > 0 ? { inactive_days: days } : {};
+  }
+  if (segment === "slot") return { slot_id: Number(formData.get("slot_id")) };
+  if (segment === "direction") {
+    return { class_key: String(formData.get("class_key") ?? ""), days: Number(formData.get("days")) || 60 };
+  }
+  return {};
+}
+
+/** Рассылка: ``preview`` — только посчитать получателей, ``send`` — отправить. */
+export async function broadcastAction(formData: FormData): Promise<void> {
+  const segment = String(formData.get("segment") ?? "all");
+  const mode = String(formData.get("mode") ?? "send");
+  const returnTo = String(formData.get("return_to") ?? "/admin/broadcasts");
+  const path = returnTo.startsWith("/admin/") ? returnTo : "/admin/broadcasts";
+  const params = segmentParams(formData, segment);
+  if (mode === "preview") {
+    const result = await adminRequest("POST", "/api/admin/broadcasts/preview", { segment, params });
+    if (!result.ok) back(path, { error: result.message });
+    const count = (result.data as { recipients: number }).recipients;
+    back(path, { notice: `Получателей: ${count}` });
+  }
+  const result = await adminRequest("POST", "/api/admin/broadcasts", {
+    segment,
+    params,
+    body: String(formData.get("body") ?? "").trim(),
+  });
+  if (!result.ok) back(path, { error: result.message });
+  const count = (result.data as { recipients: number }).recipients;
+  back(path, { notice: `Рассылка поставлена в очередь: ${count} получателей` });
+}
+
+export async function addNoteAction(formData: FormData): Promise<void> {
+  const { path, api } = clientPaths(formData);
+  const result = await adminRequest("POST", `${api}/notes`, {
+    body: String(formData.get("body") ?? "").trim(),
+  });
+  if (!result.ok) back(path, { error: result.message });
+  back(path, { notice: "Заметка добавлена" });
+}
+
+export async function deleteNoteAction(formData: FormData): Promise<void> {
+  const { path, api } = clientPaths(formData);
+  const noteId = Number(formData.get("note_id"));
+  const result = await adminRequest("DELETE", `${api}/notes/${noteId}`);
+  if (!result.ok) back(path, { error: result.message });
+  back(path, { notice: "Заметка удалена" });
+}
