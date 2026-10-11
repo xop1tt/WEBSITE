@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { isBookable, type ClassSlot } from "@/lib/api";
-import { formatClassDateTime, hoursLabel, placesLabel } from "@/lib/format";
+import { formatClassDateTime, hoursGenitive, hoursLabel, placesLabel } from "@/lib/format";
 import { bookClassAction, waitlistAction } from "@/lib/actions";
 import { ConfirmSubmitButton } from "./ConfirmSubmitButton";
 import { EmptyScheduleNotice } from "./ScheduleList";
@@ -21,7 +21,11 @@ type Props = {
   waitlistedSlotIds?: ReadonlySet<number>;
   // Список уже под заголовком дня — в карточке только время.
   timeOnly?: boolean;
+  // После своей отмены: id занятия → когда снова можно записаться.
+  rebookTimes?: ReadonlyMap<number, string>;
 };
+
+const NO_REBOOK: ReadonlyMap<number, string> = new Map();
 
 const NO_BOOKINGS: ReadonlySet<number> = new Set();
 
@@ -36,6 +40,7 @@ export function BookableScheduleList({
   hasTelegram = false,
   waitlistedSlotIds = NO_BOOKINGS,
   timeOnly = false,
+  rebookTimes = NO_REBOOK,
 }: Props) {
   const bookable = slots.filter((slot) => slot.status === "open");
   if (bookable.length === 0) {
@@ -43,6 +48,7 @@ export function BookableScheduleList({
   }
 
   const lateFrom = lateBookingThreshold(cancellationDeadlineHours);
+  const now = lateBookingThreshold(0);
   return (
     <ul className="flex flex-col gap-3">
       {bookable.map((slot) => (
@@ -57,6 +63,7 @@ export function BookableScheduleList({
           hasTelegram={hasTelegram}
           waitlisted={waitlistedSlotIds.has(slot.id)}
           timeOnly={timeOnly}
+          rebookInHours={hoursUntil(rebookTimes.get(slot.id), now)}
         />
       ))}
     </ul>
@@ -69,6 +76,13 @@ function lateBookingThreshold(hours: number): number {
   return Date.now() + hours * 60 * 60 * 1000;
 }
 
+/** Сколько целых часов (с округлением вверх) осталось до момента; null — уже можно. */
+function hoursUntil(iso: string | undefined, now: number): number | null {
+  if (!iso) return null;
+  const left = new Date(iso).getTime() - now;
+  return left > 0 ? Math.ceil(left / (60 * 60 * 1000)) : null;
+}
+
 function BookableScheduleCard({
   slot,
   isAuthenticated,
@@ -79,6 +93,7 @@ function BookableScheduleCard({
   hasTelegram,
   waitlisted,
   timeOnly,
+  rebookInHours,
 }: {
   slot: ClassSlot;
   isAuthenticated: boolean;
@@ -89,6 +104,8 @@ function BookableScheduleCard({
   hasTelegram: boolean;
   waitlisted: boolean;
   timeOnly: boolean;
+  // Пауза после своей отмены: сколько часов ждать; null — паузы нет.
+  rebookInHours: number | null;
 }) {
   const full = !isBookable(slot);
   return (
@@ -112,7 +129,7 @@ function BookableScheduleCard({
         </div>
         {irreversible && !booked && (
           <div className="text-xs text-[var(--text-secondary)]">
-            До начала меньше {hoursLabel(cancellationDeadlineHours)} — отменить
+            До начала меньше {hoursGenitive(cancellationDeadlineHours)} — отменить
             запись будет нельзя.
           </div>
         )}
@@ -142,6 +159,11 @@ function BookableScheduleCard({
                 Вы в листе ожидания — напишем, когда освободится место
               </span>
             )}
+            {rebookInHours !== null && (
+              <span className="text-xs text-[var(--text-secondary)]">
+                Записаться снова можно через {hoursLabel(rebookInHours)}
+              </span>
+            )}
             <button
               type="submit"
               className={`${waitlisted ? "glass-subtle" : "btn-primary"} rounded-full px-4 py-2 text-sm font-medium`}
@@ -159,13 +181,22 @@ function BookableScheduleCard({
         >
           Привязать Telegram
         </Link>
+      ) : isAuthenticated && rebookInHours !== null ? (
+        // Та же пауза проверяется на backend; здесь — чтобы не нажимать
+        // кнопку, которая всё равно откажет.
+        <span
+          title="Пауза после отмены записи — правило студии"
+          className="shrink-0 rounded-full bg-[var(--surface-secondary)] px-4 py-2 text-sm text-[var(--text-secondary)]"
+        >
+          Можно через {hoursLabel(rebookInHours)}
+        </span>
       ) : isAuthenticated ? (
         <form action={bookClassAction}>
           <input type="hidden" name="slot_id" value={slot.id} />
           {classKey && <input type="hidden" name="class_key" value={classKey} />}
           {irreversible ? (
             <ConfirmSubmitButton
-              confirmMessage={`Записаться на занятие? До начала меньше ${hoursLabel(cancellationDeadlineHours)} — отменить эту запись будет нельзя, занятие спишется с баланса.`}
+              confirmMessage={`Записаться на занятие? До начала меньше ${hoursGenitive(cancellationDeadlineHours)} — отменить эту запись будет нельзя, занятие спишется с баланса.`}
               className="btn-primary shrink-0 rounded-full px-4 py-2 text-sm font-medium"
             >
               Записаться

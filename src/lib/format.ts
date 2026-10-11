@@ -76,6 +76,11 @@ export function hoursLabel(count: number): string {
   return `${count} ${plural(count, ["час", "часа", "часов"])}`;
 }
 
+/** После «меньше/не позднее чем за…»: «1 часа», «24 часов», «21 часа». */
+export function hoursGenitive(count: number): string {
+  return `${count} ${plural(count, ["часа", "часов", "часов"])}`;
+}
+
 /** «3 600 ₽» — разделитель разрядов как в боте (неразрывный пробел). */
 export function formatPrice(rubles: number): string {
   return `${String(Math.round(rubles)).replace(/\B(?=(\d{3})+(?!\d))/g, "\u00a0")}\u00a0₽`;

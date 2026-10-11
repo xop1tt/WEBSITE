@@ -158,8 +158,17 @@ export default async function AccountBookingsPage({
                 <span className="font-medium">{booking.class_label}</span>
                 <span className="text-sm text-[var(--text-secondary)]">
                   {formatClassDateTime(booking.starts_at)}
-                  {booking.booking_status === "cancelled" ? " · отменено" : ""}
+                  {booking.status_label
+                    ? ` · ${booking.status_label.toLowerCase()}`
+                    : booking.booking_status === "cancelled"
+                      ? " · отменено"
+                      : ""}
                 </span>
+                {booking.cancelled_by === "studio" && booking.slot_cancel_reason && (
+                  <span className="basis-full text-xs text-[var(--text-secondary)]">
+                    Причина: {booking.slot_cancel_reason}
+                  </span>
+                )}
               </li>
             ))}
           </ul>
@@ -202,6 +211,11 @@ function UpcomingBooking({
         <span className="text-sm text-[var(--text-secondary)]">
           {formatClassDateTime(booking.starts_at)}
         </span>
+        {booking.previous_starts_at && (
+          <span className="text-xs font-medium text-[var(--primary-text)]">
+            Студия перенесла занятие — было {formatClassDateTime(booking.previous_starts_at)}
+          </span>
+        )}
         <span className="text-xs text-[var(--text-secondary)]">
           {canCancel
             ? `Отменить можно до ${formatClassDateTime(booking.cancellable_until)}`

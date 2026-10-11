@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { GLASS_BUTTON_CLASS } from "@/lib/glass";
 import { getBookingRules, getSchedule, type ClassSlot } from "@/lib/api";
-import { getMyBookedSlotIds, getMyWaitlistedSlotIds, getProfile } from "@/lib/account";
+import { getMyBookedSlotIds, getMyRebookTimes, getMyWaitlistedSlotIds, getProfile } from "@/lib/account";
 import { getCurrentUser } from "@/lib/auth";
 import { balanceLabel, formatClassDateTime, groupByWeekAndDay, hoursLabel } from "@/lib/format";
 import { BookableScheduleList } from "@/components/BookableScheduleList";
@@ -49,9 +49,14 @@ export default async function SchedulePage({
     getCurrentUser(),
     getBookingRules(),
   ]);
-  const [profileResult, bookedSlotIds, waitlistedSlotIds] = currentUser?.telegram_id
-    ? await Promise.all([getProfile(), getMyBookedSlotIds(), getMyWaitlistedSlotIds()])
-    : [null, undefined, undefined];
+  const [profileResult, bookedSlotIds, waitlistedSlotIds, rebookTimes] = currentUser?.telegram_id
+    ? await Promise.all([
+        getProfile(),
+        getMyBookedSlotIds(),
+        getMyWaitlistedSlotIds(),
+        getMyRebookTimes(),
+      ])
+    : [null, undefined, undefined, undefined];
   const profile = profileResult?.ok ? profileResult.data : null;
   const slots = schedule.ok ? schedule.data : [];
   // Как в BookableScheduleList: на сайте записи — только открытые занятия.
@@ -126,6 +131,7 @@ export default async function SchedulePage({
                 bookedSlotIds={bookedSlotIds}
                 hasTelegram={currentUser?.telegram_id != null}
                 waitlistedSlotIds={waitlistedSlotIds}
+                rebookTimes={rebookTimes}
                 timeOnly
               />
             )}

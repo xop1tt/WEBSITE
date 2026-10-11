@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { getBookingRules, getSchedule, isBookable } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth";
-import { getMyBookedSlotIds, getMyWaitlistedSlotIds } from "@/lib/account";
+import { getMyBookedSlotIds, getMyRebookTimes, getMyWaitlistedSlotIds } from "@/lib/account";
 import { ServiceUnavailableNotice } from "@/components/ServiceUnavailableNotice";
 import { getDirections } from "@/lib/directions";
 import { formatClassDateTime } from "@/lib/format";
@@ -58,9 +58,9 @@ export default async function HomePage() {
   ]);
   // Как в разделе «Записаться» бота: только занятия, на которые можно
   // записаться.
-  const [bookedSlotIds, waitlistedSlotIds] = currentUser?.telegram_id
-    ? await Promise.all([getMyBookedSlotIds(), getMyWaitlistedSlotIds()])
-    : [undefined, undefined];
+  const [bookedSlotIds, waitlistedSlotIds, rebookTimes] = currentUser?.telegram_id
+    ? await Promise.all([getMyBookedSlotIds(), getMyWaitlistedSlotIds(), getMyRebookTimes()])
+    : [undefined, undefined, undefined];
   const allSlots = scheduleResult.ok ? scheduleResult.data : [];
   const schedule = allSlots.filter(isBookable);
   const upcoming = schedule.slice(0, 4);
@@ -209,6 +209,7 @@ export default async function HomePage() {
                 bookedSlotIds={bookedSlotIds}
                 hasTelegram={currentUser?.telegram_id != null}
                 waitlistedSlotIds={waitlistedSlotIds}
+                rebookTimes={rebookTimes}
               />
             ) : (
               <ServiceUnavailableNotice />
