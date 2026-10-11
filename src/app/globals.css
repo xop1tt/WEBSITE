@@ -680,12 +680,11 @@ body:has(.scenes) .site-header {
   height: 100%;
   border-radius: 999px;
   /* Капсула: отступ = (высота капсулы − 40px)/2, поэтому круглые кнопки
-     и кнопки-пилюли по краям концентричны её скруглению. Слева — запас
-     под логотип, который тает вместе с ним (--header-collapse), чтобы в
-     свёрнутом виде первая кнопка тоже стояла концентрично. */
+     и кнопки-пилюли справа концентричны её скруглению. Слева — запас под
+     текстовый логотип. */
   --bar-pad: 8px;
   --bar-logo-pad: 8px;
-  padding-inline: calc(var(--bar-pad) + var(--bar-logo-pad) * (1 - var(--header-collapse, 0))) var(--bar-pad);
+  padding-inline: calc(var(--bar-pad) + var(--bar-logo-pad)) var(--bar-pad);
   background-color: color-mix(
     in srgb,
     var(--glass-tint) calc(var(--glass-header-alpha-min) + (var(--glass-header-alpha-max) - var(--glass-header-alpha-min)) * var(--d)),
@@ -850,55 +849,6 @@ body:has(.scenes) .site-header {
   width: 1.5rem;
   height: 1px;
   background: var(--primary);
-}
-
-/* === Шапка: лого и кнопка "Войти" сворачиваются при прокрутке — непрерывная
-   функция позиции скролла (--header-collapse, 0..1, пишет GlassController),
-   один calc() без transition и без auto: обновляется на каждый тик скролла
-   синхронно с ним, без телепортов соседних элементов. nav остаётся
-   прижатым вправо обычным ml-auto и плавно следует за освобождающимся
-   местом. Сама панель (.site-header-bar) при этом размер не меняет. */
-
-.header-row {
-  position: relative;
-}
-
-.header-logo,
-.header-cta {
-  --collapse: var(--header-collapse, 0);
-  overflow: hidden;
-  white-space: nowrap;
-  max-width: calc(var(--w) * (1 - var(--collapse)));
-  opacity: calc(1 - var(--collapse));
-}
-
-/* .header-cta обрезает содержимое по своему боксу — padding (компенсирован
-   отрицательным margin, layout не меняется) оставляет место под тень
-   кнопки "Войти" и её сжатие при нажатии. Отрицательный margin справа растёт вместе
-   со сворачиванием и съедает flex-gap (12px) рядом со свёрнутым элементом —
-   иначе в узкой панели оставалась бы лишняя щель. */
-.header-cta {
-  --w: 200px;
-  padding: 10px;
-  margin: -10px;
-  margin-right: calc(-10px - var(--collapse) * 12px);
-}
-
-/* У администратора в той же группе ещё ссылка «Админка». */
-.header-cta.header-cta-wide {
-  --w: 340px;
-}
-
-.header-logo {
-  --w: 240px;
-  margin-right: calc(var(--collapse) * -12px);
-}
-
-/* Полностью свёрнутое состояние: убираем из клавиатурной табуляции и
-   кликов невидимый (max-width:0) элемент. */
-:root[data-header-collapsed="true"] .header-logo,
-:root[data-header-collapsed="true"] .header-cta {
-  visibility: hidden;
 }
 
 /* ==========================================================================

@@ -9,9 +9,16 @@ import { NAV_ITEM_CLASS } from "@/lib/glass";
 export function NavLink({
   href,
   children,
+  className,
+  label,
 }: {
   href: string;
   children: React.ReactNode;
+  // Базовые классы вместо NAV_ITEM_CLASS — для круглых контролов шапки
+  // (цвет текста тогда задают они сами).
+  className?: string;
+  // Подпись для иконки без текста (aria-label и подсказка).
+  label?: string;
 }) {
   const pathname = usePathname();
   const isActive = pathname === href;
@@ -20,8 +27,12 @@ export function NavLink({
     <Link
       href={href}
       aria-current={isActive ? "page" : undefined}
-      className={`${NAV_ITEM_CLASS} ${
-        isActive ? "text-[var(--primary-text)]" : "text-[var(--text-secondary)] hover:text-[var(--primary-text)]"
+      aria-label={label}
+      title={label}
+      className={`${className ?? NAV_ITEM_CLASS} ${
+        isActive
+          ? "text-[var(--primary-text)]"
+          : `${className ? "" : "text-[var(--text-secondary)]"} hover:text-[var(--primary-text)]`
       }`}
     >
       {children}

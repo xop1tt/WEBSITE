@@ -7,6 +7,11 @@
 export const NAV_ITEM_CLASS =
   "glass-subtle glass-interactive glass-ghost inline-flex items-center justify-center whitespace-nowrap rounded-full px-3 py-1.5 text-[18px] font-semibold leading-none md:px-2.5 md:text-base lg:px-3 lg:text-[18px]";
 
+// Круглый контрол шапки 40×40 (тема, выход, меню, иконка кабинета): одна
+// высота с кнопкой «Войти», не сжимается при нехватке ширины.
+export const HEADER_CONTROL_CLASS =
+  "glass-subtle glass-interactive flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[var(--text-primary)]";
+
 // Вторичная кнопка/ссылка: прозрачное стекло с тонкой кромкой; на hover
 // кромка ярче и появляется внутренний блик, без свечения вокруг. Размеры
 // (padding, шрифт) задаёт вызывающий — они у кнопок разные. Над живым фоном
