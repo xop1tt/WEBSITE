@@ -3,8 +3,10 @@ import { Comfortaa } from "next/font/google";
 import { headers } from "next/headers";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
+import { EasterEgg } from "@/components/EasterEgg";
 import { GlassController } from "@/components/GlassController";
 import { MaintenanceNotice } from "@/components/MaintenanceNotice";
+import { SideAds } from "@/components/ads/SideAds";
 import { formatClassDateTime } from "@/lib/format";
 import { NOTICE_REQUEST_HEADER, parseNotice } from "@/lib/maintenance";
 import "./globals.css";
@@ -77,7 +79,9 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       </head>
       <body className="flex min-h-full flex-col">
         <div className="site-backdrop" aria-hidden="true" />
+        <SideAds />
         <GlassController />
+        <EasterEgg />
         <SiteHeader />
         <main className="flex-1">{children}</main>
         <SiteFooter />

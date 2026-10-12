@@ -34,7 +34,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   }
   if (session.status === "unavailable") {
     return (
-      <div className="mx-auto max-w-5xl px-4 py-12">
+      <div className="admin-shell mx-auto max-w-5xl px-4 py-12">
         <ServiceUnavailableNotice />
       </div>
     );
@@ -47,7 +47,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   }
 
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-12">
+    <div className="admin-shell mx-auto flex max-w-6xl flex-col gap-6 px-4 py-12">
       <div className="flex flex-col gap-2">
         <h1 className="font-heading text-4xl font-bold tracking-tight">
           {role === "admin" ? "Админка" : "Кабинет преподавателя"}

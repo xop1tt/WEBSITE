@@ -7,6 +7,7 @@ import { formatClassDateTime } from "@/lib/format";
 import { GLASS_BUTTON_CLASS, PRIMARY_BUTTON_CLASS } from "@/lib/glass";
 import { HomeStory } from "@/components/HomeStory";
 import { TelegramIcon } from "@/components/TelegramIcon";
+import { SceneAds } from "@/components/ads/SceneAds";
 import { HomeStage } from "@/components/home/HomeStage";
 import { Curtain } from "@/components/home/Curtain";
 import { CastanetsArt } from "@/components/home/StageArt";
@@ -35,7 +36,7 @@ export default async function HomePage() {
 
   return (
     <HomeStory stage={<HomeStage />}>
-      <Scene id="hero" dark labelledBy="hero-title">
+      <Scene id="hero" labelledBy="hero-title">
         <Curtain />
         <div className="relative z-[4] mx-auto w-full max-w-6xl px-5 sm:px-6">
           <div className="stage-copy mx-auto flex max-w-2xl flex-col items-center gap-4 text-center">
@@ -103,7 +104,7 @@ export default async function HomePage() {
         </a>
       </Scene>
 
-      <Scene id="about" labelledBy="about-title">
+      <Scene id="about" labelledBy="about-title" ads>
         <div className="mx-auto w-full max-w-3xl px-4">
           <div className="relative">
             <div className="glass-medium glass-float relative isolate rounded-[32px] px-5 pb-32 pt-36 sm:px-10 sm:pb-40 sm:pt-44 lg:px-16 lg:py-16">
@@ -161,7 +162,7 @@ export default async function HomePage() {
         </div>
       </Scene>
 
-      <Scene id="directions" labelledBy="directions-title">
+      <Scene id="directions" labelledBy="directions-title" ads>
         <div className="mx-auto w-full max-w-3xl px-4">
           <div className="glass-medium glass-float relative isolate rounded-[32px] px-5 py-10 sm:px-10 sm:py-14">
             <div className="mx-auto flex max-w-2xl flex-col items-center gap-4 text-center">
@@ -182,15 +183,26 @@ export default async function HomePage() {
                     key={direction.key}
                     className="glass-subtle flex flex-col gap-3 rounded-[24px] p-5 text-left sm:p-6"
                   >
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <h3 className="font-heading text-xl font-bold tracking-tight">{direction.label}</h3>
+                    {/* Три фиксированные зоны — заголовок в 1 строку, плашка
+                        уровня в 1 строку, текст в 5 строк: у всех карточек
+                        блоки стоят на одной высоте. */}
+                    <h3
+                      title={direction.label}
+                      className="font-heading truncate text-lg font-bold leading-tight tracking-tight"
+                    >
+                      {direction.label}
+                    </h3>
+                    <div className="h-7">
                       {direction.level && (
-                        <span className="rounded-full bg-[color-mix(in_srgb,var(--primary)_16%,transparent)] px-3 py-1 text-xs font-semibold text-[var(--primary-text)]">
+                        <span
+                          title={direction.level}
+                          className="block w-fit max-w-full truncate rounded-full bg-[color-mix(in_srgb,var(--primary)_16%,transparent)] px-3 py-1 text-xs font-semibold leading-5 text-[var(--primary-text)]"
+                        >
                           {direction.level}
                         </span>
                       )}
                     </div>
-                    <p className="flex-1 text-[15px] leading-relaxed text-[var(--text-secondary)]">
+                    <p className="line-clamp-5 h-[5lh] text-[15px] leading-relaxed text-[var(--text-secondary)]">
                       {direction.description}
                     </p>
                     <Link
@@ -226,29 +238,29 @@ export default async function HomePage() {
           </div>
         </div>
       </Scene>
-
     </HomeStory>
   );
 }
 
-// Секция главной; dark — тёмный кадр hero поверх фона-сцены.
+// Секция главной; ads — рекламные баннеры по бокам, по центру секции.
 function Scene({
   id,
-  dark = false,
   labelledBy,
+  ads = false,
   children,
 }: {
   id: string;
-  dark?: boolean;
   labelledBy: string;
+  ads?: boolean;
   children: ReactNode;
 }) {
   return (
     <section
       id={id}
       aria-labelledby={labelledBy}
-      className={dark ? "scene scene--dark stage-dark" : "scene"}
+      className="scene"
     >
+      {ads && <SceneAds />}
       {children}
     </section>
   );

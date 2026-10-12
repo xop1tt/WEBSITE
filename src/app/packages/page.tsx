@@ -35,6 +35,9 @@ export default async function PackagesPage({
         Разовое занятие или абонемент на несколько занятий — цены и состав
         всегда актуальны, их определяет студия.
       </p>
+      <p className="glass-subtle w-fit max-w-2xl rounded-2xl px-4 py-2.5 text-sm text-[var(--text-secondary)]">
+        Цены могут измениться — студия вправе обновлять стоимость абонементов.
+      </p>
       {checkoutError && (
         <p className="rounded-2xl border border-[color-mix(in_srgb,var(--danger)_25%,transparent)] bg-[var(--danger-bg)] px-4 py-3 text-sm text-[var(--danger-text)]">
           {checkoutError}

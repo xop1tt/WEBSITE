@@ -17,6 +17,10 @@ export default function ContactPage() {
     <div className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-12 sm:py-16">
       <div className="flex flex-col gap-3">
         <h1 className="font-heading text-4xl font-bold tracking-tight sm:text-5xl">Контакты</h1>
+        <p className="glass-subtle w-fit max-w-2xl rounded-2xl px-4 py-2.5 text-sm text-[var(--text-secondary)]">
+          🚧 Страница ещё в разработке, а контакты студии пока выдуманные —
+          настоящие адрес и телефон уже собирают чемоданы, чтобы появиться здесь.
+        </p>
       </div>
       <p className="text-lg leading-relaxed text-[var(--text-secondary)]">
         Свяжитесь со студией любым удобным способом — поможем выбрать

@@ -31,11 +31,26 @@
   --danger-text: #991B1B;
   --danger: #B91C1C;
 
-  /* Палитра "поверх тёмной сцены" — нужна и в светлой теме: шапка
-     перетекает к ней, пока за ней тёмный кадр hero (см. .site-header ниже). */
-  --on-stage-text: #F3E6E2;
-  --on-stage-text-secondary: #C7A9AA;
-  --on-stage-accent: #F0B8C4;
+  /* Сцена hero (светлая тема): тёплый кремовый зал, мягкий розовый свет
+     софита. В тёмной теме те же токены переопределены ниже. */
+  /* В светлой теме база и дымка лежат на общем фоне сайта
+     (.site-backdrop), кадр hero только добавляет свет — так нет шва. */
+  --stage-bg: transparent;
+  --stage-base: radial-gradient(120% 90% at 70% 30%, #FBE4E4 0%, #F7EAE2 55%, #F2E3DA 100%);
+  --stage-base-hero: none;
+  --stage-floor: radial-gradient(55% 60% at 68% 100%, rgba(165, 46, 72, 0.12), transparent 70%),
+    linear-gradient(to top, rgba(120, 50, 60, 0.1), transparent 80%);
+  --stage-spot: radial-gradient(closest-side, rgba(224, 96, 120, 0.3), rgba(224, 96, 120, 0.09) 48%, transparent 100%);
+  --stage-beam-rgb: 255, 255, 255;
+  --stage-beam-a1: 0.28;
+  --stage-beam-a2: 0.5;
+  --stage-vignette: radial-gradient(ellipse at center, transparent 55%, rgba(165, 70, 86, 0.14) 100%);
+  --stage-copy-shadow: 0 1px 18px rgba(255, 249, 244, 0.7);
+  --curtain-shadow: rgba(60, 14, 26, 0.3);
+  /* Дымка сцены на фоне всего сайта (.site-backdrop): продолжение света
+     софита из hero. */
+  --haze-spot: rgba(224, 96, 120, 0.26);
+  --haze-spot-soft: rgba(224, 96, 120, 0.1);
 
   /* ---- Liquid Glass: сырые значения материала для ОБЕИХ тем ----
      Один материал — два освещения. Активные токены (--glass-*) ниже
@@ -125,7 +140,6 @@
   --dur-material: 0.32s;
 
   /* Горошек (лунарес) на фоне средних сцен главной. */
-  --lunar: rgba(165, 46, 72, 0.055);
 
   /* Высота зоны шапки: отступ сверху + плавающая панель. */
   --header-space: 66px;
@@ -144,10 +158,7 @@
    Устанавливается атрибутом data-theme на <html> (см. ThemeToggle и
    no-flash скрипт в layout.tsx), а не классом, чтобы совпадать с
    нативным color-scheme и не требовать второго механизма переключения. */
-/* .stage-dark — тот же набор токенов для контента, лежащего поверх тёмной
-   театральной сцены главной (hero, финальная сцена) в любой теме. */
-:root[data-theme="dark"],
-.stage-dark {
+:root[data-theme="dark"] {
   --background: #1A1113;
   --surface: #241619;
   --surface-secondary: #2F1E22;
@@ -173,6 +184,21 @@
   --danger-text: #F2A8AC;
   --danger: #E2626B;
 
+  /* Сцена hero: тёмный театральный кадр. */
+  --stage-bg: #070304;
+  --stage-base: radial-gradient(120% 90% at 70% 30%, #2a0d13 0%, #120607 55%, #070304 100%);
+  --stage-base-hero: var(--stage-base);
+  --stage-floor: radial-gradient(55% 60% at 68% 100%, rgba(160, 24, 46, 0.24), transparent 70%),
+    linear-gradient(to top, rgba(0, 0, 0, 0.55), transparent 80%);
+  --stage-spot: radial-gradient(closest-side, rgba(200, 30, 50, 0.42), rgba(200, 30, 50, 0.13) 48%, transparent 100%);
+  --stage-beam-rgb: 255, 214, 200;
+  --stage-beam-a1: 0.045;
+  --stage-beam-a2: 0.09;
+  --stage-vignette: radial-gradient(ellipse at center, transparent 55%, rgba(26, 4, 10, 0.6) 100%);
+  --stage-copy-shadow: 0 2px 24px rgba(0, 0, 0, 0.55);
+  --curtain-shadow: rgba(0, 0, 0, 0.5);
+  --haze-spot: rgba(200, 30, 50, 0.22);
+  --haze-spot-soft: rgba(200, 30, 50, 0.08);
 
   /* Тёмное освещение того же материала (сырые значения — в :root). */
   --glass-tint: var(--lg-d-tint);
@@ -205,7 +231,6 @@
   --elev-3: 0 2px 8px rgba(0, 0, 0, 0.3), 0 28px 60px -22px rgba(0, 0, 0, 0.8);
   --glass-shadow-color: rgba(0, 0, 0, 0.5);
 
-  --lunar: rgba(240, 184, 196, 0.03);
 
   color-scheme: dark;
 }
@@ -251,33 +276,119 @@ body {
   transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
-/* Фон сайта вне главной: фиксированный, на основе токенов темы — никакой
-   фотографии. Тот же язык, что у средних сцен главной: тёплый свет софита
-   сверху справа, винный отсвет снизу слева и лунарес (горошек), тающий к
-   краям. Стеклу нужно, что "преломлять": сквозь полупрозрачные карточки
-   просвечивают горошек и цветовые пятна, а не ровная заливка. Статичный
-   слой — на скролл ничего не пересчитывается. */
+/* Фон всего сайта: фиксированный, на основе токенов темы — никакой
+   фотографии. Та же сцена, что в hero главной: розовая дымка софита и
+   винный отсвет снизу слева. Стеклу нужно, что "преломлять": сквозь
+   полупрозрачные карточки просвечивают цветовые пятна, а не ровная
+   заливка. Статичный слой — на скролл ничего не пересчитывается. */
 .site-backdrop {
   position: fixed;
   inset: 0;
   z-index: -1;
   background:
-    radial-gradient(70% 60% at 82% -4%, color-mix(in srgb, var(--primary-light) 70%, transparent), transparent 70%),
+    radial-gradient(65% 60% at 72% 24%, var(--haze-spot), var(--haze-spot-soft) 55%, transparent 80%),
     radial-gradient(60% 55% at 6% 96%, color-mix(in srgb, var(--primary) 9%, transparent), transparent 72%),
+    var(--stage-base),
     var(--background);
 }
 
-.site-backdrop::before {
-  content: "";
+/* ==========================================================================
+   Рекламные места (МАКЕТ — баннеры вымышленные, см. components/ads).
+   Вне главной: вертикальные баннеры 160×600 по центру свободных полей по
+   бокам контента (контент до 1024px), только когда поля есть (≥1400px).
+   Главная: по два баннера в секциях «О нас» и «Наши направления».
+   ========================================================================== */
+.ad-rail,
+.scene-ad {
+  display: none;
+}
+
+@media (min-width: 1400px) {
+  .ad-rail {
+    display: block;
+    position: fixed;
+    z-index: 1;
+    top: calc(var(--header-space) + 24px);
+    width: 160px;
+    --ad-gutter: calc((100vw - 1024px) / 2);
+    --ad-shift: 60px;
+  }
+
+  /* Баннер сдвинут от центра поля ближе к контенту на --ad-shift, но не
+     ближе 16px к нему. */
+  .ad-rail--left {
+    left: min(calc((var(--ad-gutter) - 160px) / 2 + var(--ad-shift)), calc(var(--ad-gutter) - 176px));
+  }
+
+  .ad-rail--right {
+    right: min(calc((var(--ad-gutter) - 160px) / 2 + var(--ad-shift)), calc(var(--ad-gutter) - 176px));
+  }
+
+  /* На главной свои баннеры, в админке и на странице работ рекламы нет. */
+  body:has(.scenes) .ad-rail,
+  body:has(.admin-shell) .ad-rail,
+  body:has(.maintenance-screen) .ad-rail {
+    display: none;
+  }
+}
+
+.ad-banner {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 160px;
+  height: min(600px, calc(100svh - var(--header-space) - 56px));
+  padding: 26px 14px 16px;
+  overflow: hidden;
+  border-radius: 14px;
+  color: #fff;
+  text-align: left;
+  box-shadow: 0 1px 2px rgba(60, 14, 26, 0.12), 0 18px 38px -18px rgba(60, 14, 26, 0.55);
+  outline: 1px solid rgba(255, 255, 255, 0.14);
+  outline-offset: -1px;
+}
+
+.ad-banner__label {
   position: absolute;
-  inset: 0;
-  background-image:
-    radial-gradient(circle, var(--lunar) 0 7px, transparent 8px),
-    radial-gradient(circle, var(--lunar) 0 7px, transparent 8px);
-  background-size: 64px 64px;
-  background-position: 0 0, 32px 32px;
-  -webkit-mask-image: radial-gradient(55% 60% at 88% 18%, #000, transparent 80%);
-  mask-image: radial-gradient(55% 60% at 88% 18%, #000, transparent 80%);
+  top: 7px;
+  left: 12px;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+.ad-banner__headline {
+  margin: auto 0;
+  font-family: var(--font-heading, inherit);
+  font-size: 24px;
+  line-height: 1.2;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* ---------- Главная: баннеры в секциях ---------- */
+/* По два баннера в секциях «О нас» и «Наши направления»: по бокам, по центру
+   высоты секции, на месте (не едут за прокруткой). Отступ от края — тот же,
+   что у баннеров на остальных страницах, плюс сдвиг к центру. */
+@media (min-width: 1400px) {
+  .scene-ad {
+    --scene-ad-edge: calc((clamp(200px, (100vw - 1100px) / 2, 320px) - 160px) / 2 + 60px);
+    display: block;
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 1;
+  }
+
+  .scene-ad--left {
+    left: var(--scene-ad-edge);
+  }
+
+  .scene-ad--right {
+    right: var(--scene-ad-edge);
+  }
 }
 
 /* Футер — обычная поверхность, не стекло: он не "парит" над сценой.
@@ -410,6 +521,13 @@ body {
     --glass-alpha-base: var(--glass-alpha-subtle);
     --glass-elev: var(--elev-1);
     --glass-bevel: 9px;
+  }
+
+  /* Светлая тема: кнопки-стекло чуть темнее фона — на кремовой странице
+     молочное стекло иначе почти сливается с ним. */
+  :root:not([data-theme="dark"]) .glass-subtle {
+    --glass-tint: color-mix(in srgb, var(--lg-l-tint) 62%, #C9A9A0);
+    --glass-alpha-base: 72%;
   }
 
   .glass-medium {
@@ -761,8 +879,7 @@ body:has(.scenes) .site-header {
    кромки, тени и уровни остаются, читаемость максимальная. */
 @media (prefers-reduced-transparency: reduce) {
   :root,
-  :root[data-theme="dark"],
-  .stage-dark {
+  :root[data-theme="dark"] {
     --glass-alpha-quiet: 70%;
     --glass-alpha-subtle: 88%;
     --glass-alpha-medium: 95%;
@@ -865,10 +982,6 @@ body:has(.scenes) .site-header {
   padding: 72px 0;
 }
 
-.scene--dark {
-  color: var(--text-primary);
-}
-
 #hero.scene {
   display: flex;
   align-items: center;
@@ -954,9 +1067,9 @@ body:has(.scenes) .site-header {
   }
 }
 
-/* Текст поверх тёмной сцены: тени для читаемости. */
+/* Текст поверх сцены: тень/ореол для читаемости (по теме). */
 .stage-copy {
-  text-shadow: 0 2px 24px rgba(0, 0, 0, 0.55);
+  text-shadow: var(--stage-copy-shadow);
 }
 
 /* ---------- Фон сцены ---------- */
@@ -965,15 +1078,15 @@ body:has(.scenes) .site-header {
   left: 0;
   right: 0;
   top: 0;
-  /* Кадр hero целиком тёмный, растворение — ниже его края. */
+  /* Кадр hero целиком в тоне сцены, растворение — ниже его края. */
   height: calc(100svh + var(--stage-fade));
   z-index: 0;
   overflow: hidden;
   pointer-events: none;
-  background: #070304;
+  background: var(--stage-bg);
 }
 
-/* Тёмный кадр hero мягко растворяется в фоне страницы, а не обрывается
+/* Кадр hero мягко растворяется в фоне страницы, а не обрывается
    ровной линией. */
 .stage {
   --stage-fade: 160px;
@@ -988,7 +1101,7 @@ body:has(.scenes) .site-header {
 /* Запас по краям — под "наезд камеры" (scale) без открытых краёв. */
 .stage-base {
   inset: -8%;
-  background: radial-gradient(120% 90% at 70% 30%, #2a0d13 0%, #120607 55%, #070304 100%);
+  background: var(--stage-base-hero);
 }
 
 /* Пол сцены: тёмный низ и отражение софита. */
@@ -997,9 +1110,7 @@ body:has(.scenes) .site-header {
   right: -10%;
   bottom: -8%;
   height: 50%;
-  background:
-    radial-gradient(55% 60% at 68% 100%, rgba(160, 24, 46, 0.24), transparent 70%),
-    linear-gradient(to top, rgba(0, 0, 0, 0.55), transparent 80%);
+  background: var(--stage-floor);
 }
 
 /* Софит — пятно света в hero. Двигается transform-ом (композитор),
@@ -1009,7 +1120,7 @@ body:has(.scenes) .site-header {
   height: 110vmax;
   left: calc(72% - 55vmax);
   top: calc(30% - 55vmax);
-  background: radial-gradient(closest-side, rgba(200, 30, 50, 0.42), rgba(200, 30, 50, 0.13) 48%, transparent 100%);
+  background: var(--stage-spot);
 }
 
 /* Луч театрального прожектора сверху. */
@@ -1022,9 +1133,9 @@ body:has(.scenes) .site-header {
   background: conic-gradient(
     from 166deg at 50% 0%,
     transparent 0deg,
-    rgba(255, 214, 200, 0.045) 9deg,
-    rgba(255, 222, 208, 0.09) 14deg,
-    rgba(255, 214, 200, 0.045) 19deg,
+    rgba(var(--stage-beam-rgb), var(--stage-beam-a1)) 9deg,
+    rgba(var(--stage-beam-rgb), var(--stage-beam-a2)) 14deg,
+    rgba(var(--stage-beam-rgb), var(--stage-beam-a1)) 19deg,
     transparent 28deg
   );
   -webkit-mask-image: linear-gradient(to bottom, #000 25%, transparent 92%);
@@ -1034,7 +1145,7 @@ body:has(.scenes) .site-header {
 /* Виньетка по краям тёмного кадра. */
 .stage-vignette {
   inset: 0;
-  background: radial-gradient(ellipse at center, transparent 55%, rgba(26, 4, 10, 0.6) 100%);
+  background: var(--stage-vignette);
 }
 
 /* Текст «О нас» поверх фото: мягкий ореол цвета стекла для читаемости. */
@@ -1136,7 +1247,7 @@ body:has(.scenes) .site-header {
   top: 0;
   bottom: 0;
   width: var(--curtain-w);
-  filter: drop-shadow(0 16px 20px rgba(0, 0, 0, 0.5));
+  filter: drop-shadow(0 16px 20px var(--curtain-shadow));
 }
 
 .curtain-side--left {
@@ -1180,39 +1291,6 @@ body:has(.scenes) .site-header {
   background: linear-gradient(to bottom, #f5d98a, #b8862b 60%, #7a5516);
   transform: rotate(32deg);
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
-}
-
-/* Адаптивное стекло шапки в светлой теме: пока за ней тёмный кадр hero
-   (--stage-dark → 1, пишет HomeStory), материал и
-   текст непрерывно перетекают к тёмному варианту — иначе светлый текст на
-   светлом стекле поверх тёмного кадра был бы нечитаем. В тёмной теме сцена
-   и так тёмная. */
-:root:not([data-theme="dark"]) .site-header {
-  /* Кривая круче, чем у самой сцены: средние тона (серый текст на сером
-     стекле) нечитаемы, поэтому шапка проходит их быстро. */
-  --sdn: clamp(0, var(--stage-dark, 0) * 3 - 1, 1);
-  --sd: calc(var(--sdn) * 100%);
-  --glass-tint: color-mix(in srgb, var(--lg-d-tint) var(--sd), var(--lg-l-tint));
-  --glass-border: color-mix(in srgb, var(--lg-d-border) var(--sd), var(--lg-l-border));
-  --glass-border-hover: color-mix(in srgb, var(--lg-d-border-hover) var(--sd), var(--lg-l-border-hover));
-  --glass-sheen: color-mix(in srgb, var(--lg-d-sheen) var(--sd), var(--lg-l-sheen));
-  --glass-caustic: color-mix(in srgb, var(--lg-d-caustic) var(--sd), var(--lg-l-caustic));
-  --glass-edge-top: color-mix(in srgb, var(--lg-d-edge-top) var(--sd), var(--lg-l-edge-top));
-  --glass-edge-bottom: color-mix(in srgb, var(--lg-d-edge-bottom) var(--sd), var(--lg-l-edge-bottom));
-  --glass-bevel-hi: color-mix(in srgb, var(--lg-d-bevel-hi) var(--sd), var(--lg-l-bevel-hi));
-  --glass-bevel-lo: color-mix(in srgb, var(--lg-d-bevel-lo) var(--sd), var(--lg-l-bevel-lo));
-  --glass-rim-hi: color-mix(in srgb, var(--lg-d-rim-hi) var(--sd), var(--lg-l-rim-hi));
-  --glass-rim-lo: color-mix(in srgb, var(--lg-d-rim-lo) var(--sd), var(--lg-l-rim-lo));
-  --glass-glint: color-mix(in srgb, var(--lg-d-glint) var(--sd), var(--lg-l-glint));
-  --glass-recess: color-mix(in srgb, var(--lg-d-recess) var(--sd), var(--lg-l-recess));
-  --glass-brightness: calc(var(--lg-l-brightness) + (var(--lg-d-brightness) - var(--lg-l-brightness)) * var(--sdn));
-  --text-primary: color-mix(in srgb, var(--on-stage-text) var(--sd), #2B171B);
-  --text-secondary: color-mix(in srgb, var(--on-stage-text-secondary) var(--sd), #6F5557);
-  --accent-dark: color-mix(in srgb, var(--on-stage-accent) var(--sd), #641F32);
-}
-
-.stage-dark {
-  color: var(--text-primary);
 }
 
 /* ==========================================================================

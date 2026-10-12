@@ -1,4 +1,6 @@
 import { getCurrentUser, type CurrentUser } from "@/lib/auth";
+import { getProfile } from "@/lib/account";
+import { lessonsCount } from "@/lib/format";
 import { logoutAction } from "@/lib/actions";
 import Link from "next/link";
 import { HEADER_CONTROL_CLASS, NAV_ITEM_CLASS, PRIMARY_BUTTON_CLASS } from "@/lib/glass";
@@ -64,7 +66,7 @@ const firstName = (name: string) => name.trim().split(/\s+/)[0] ?? name;
 // Слот «кабинет / войти» — одно место в шапке для обоих состояний, высота
 // 40px как у круглых контролов. Кабинет до lg — круглая иконка, шире — иконка
 // и имя, обрезанное многоточием: длинное имя не раздвигает шапку.
-function AccountSlot({ user }: { user: CurrentUser | null }) {
+function AccountSlot({ user, credits }: { user: CurrentUser | null; credits: number | null }) {
   if (!user) {
     return (
       <Link
@@ -76,21 +78,43 @@ function AccountSlot({ user }: { user: CurrentUser | null }) {
     );
   }
   return (
-    <NavLink
-      href="/account"
-      label={`Личный кабинет: ${firstName(user.display_name)}`}
-      className={`${HEADER_CONTROL_CLASS} gap-1.5 lg:w-auto lg:max-w-[10.5rem] lg:px-3.5 xl:max-w-[13rem]`}
-      prefix
-      activeClassName={HEADER_ACTIVE_CLASS}
-    >
-      <UserIcon />
-      <span className="hidden min-w-0 truncate text-base font-semibold leading-normal lg:block">{firstName(user.display_name)}</span>
-    </NavLink>
+    // group: окошко с балансом открывается при наведении или фокусе на
+    // кабинет (только от lg — на касаниях наведения нет, там баланс виден в
+    // кабинете). pt-2 у окошка — «мостик», чтобы оно не гасло по пути курсора.
+    <div className="group relative flex">
+      <NavLink
+        href="/account"
+        label={`Личный кабинет: ${firstName(user.display_name)}`}
+        className={`${HEADER_CONTROL_CLASS} gap-1.5 lg:w-auto lg:max-w-[10.5rem] lg:px-3.5 xl:max-w-[13rem]`}
+        prefix
+        activeClassName={HEADER_ACTIVE_CLASS}
+      >
+        <UserIcon />
+        <span className="hidden min-w-0 truncate text-base font-semibold leading-normal lg:block">{firstName(user.display_name)}</span>
+      </NavLink>
+      {credits !== null && (
+        <div className="pointer-events-none invisible absolute right-0 top-full z-20 hidden pt-2 opacity-0 transition-[opacity,visibility] duration-150 group-hover:pointer-events-auto group-hover:visible group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:visible group-focus-within:opacity-100 lg:block">
+          <div className="glass-dense glass-float flex w-56 flex-col gap-1 rounded-2xl p-4 text-left">
+            <span className="text-xs uppercase tracking-[0.14em] text-[var(--text-muted)]">Баланс</span>
+            <span className="font-heading text-2xl font-bold tracking-tight">{lessonsCount(credits)}</span>
+            <Link
+              href="/packages"
+              className="mt-1 w-fit text-sm font-semibold text-[var(--primary-text)] underline-offset-4 hover:underline"
+            >
+              Пополнить →
+            </Link>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
 export async function SiteHeader() {
   const currentUser = await getCurrentUser();
+  // Баланс — только у тех, к кому привязан Telegram (профиль общий с ботом).
+  const profile = currentUser?.telegram_id ? await getProfile() : null;
+  const credits = profile?.ok ? profile.data.lesson_credits : null;
 
   return (
     // Шапка — плавающая стеклянная панель (.site-header-bar, globals.css)
@@ -125,7 +149,7 @@ export async function SiteHeader() {
         </nav>
 
         <div className="hidden shrink-0 items-center gap-2 md:flex">
-          <AccountSlot user={currentUser} />
+          <AccountSlot user={currentUser} credits={credits} />
           {currentUser && (
             <form action={logoutAction} className="flex">
               <button

@@ -109,9 +109,10 @@ export function getMyPackages(): Promise<ApiResult<PackageSummary>> {
   return fetchWithSession<PackageSummary>("/api/packages/me");
 }
 
-export function getProfile(): Promise<ApiResult<Profile>> {
-  return fetchWithSession<Profile>("/api/users/me/profile");
-}
+// cache — шапка и страница делят один запрос профиля на рендер.
+export const getProfile = cache(
+  (): Promise<ApiResult<Profile>> => fetchWithSession<Profile>("/api/users/me/profile"),
+);
 
 // cache — один запрос на рендер страницы, сколько бы помощников ниже
 // ни спрашивали записи.
